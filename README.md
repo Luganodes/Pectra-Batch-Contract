@@ -44,10 +44,8 @@ The core mechanism relies on EIP-7702:
 5.  **Iterative Calls:** The batch function loops through the provided validator data, making individual, low-level `.call()`s to the appropriate official `sys-asm` contract (`consolidationTarget` or `exitTarget`).
 6.  **Origin Preservation:** Crucially, these low-level calls originate *from the withdrawal EOA's address*, satisfying the security requirement of the `sys-asm` contracts.
 
-*(You can insert the flow diagram image here in your actual GitHub README)*
-```
-[Flow Diagram Placeholder - Insert image.png here]
-```
+![Flow Diagram](https://i.imgur.com/bLdGa3Q.png)
+
 ## Security
 
 * **EIP-7702 Authorization:** The primary security relies on the EIP-7702 transaction being signed by the legitimate withdrawal EOA's private key.
