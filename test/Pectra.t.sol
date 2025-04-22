@@ -9,8 +9,8 @@ contract PectraTest is Test {
 
     // These addresses are hardcoded in the Pectra contract.
     address constant consolidationTarget =
-        0x01aBEa29659e5e97C95107F20bb753cD3e09bBBb;
-    address constant exitTarget = 0x09Fc772D0857550724b07B850a4323f39112aAaA;
+        0x0000BBdDc7CE488642fb579F8B00f3a590007251;
+    address constant exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
 
     // Minimal bytecode that immediately returns (i.e. succeeds).
     bytes constant successCode = hex"60006000f3";
