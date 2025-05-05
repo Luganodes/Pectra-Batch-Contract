@@ -38,7 +38,7 @@ contract PectraTest is Test {
     // ─────────────────────────────────────────────────────────────────────────────
     // Tests for getFee
     // ─────────────────────────────────────────────────────────────────────────────
-    
+
     function testGetFee_ConsolidationTarget() public view {
         uint256 fee = pectra.getFee(consolidationTarget);
         assertEq(fee, 1 wei, "Fee from consolidationTarget should be 1 wei");
@@ -154,17 +154,17 @@ contract PectraTest is Test {
             sources[i] = validPubkey();
         }
         bytes memory target = validPubkey();
-        
+
         // Get the fee from the target
         uint256 fee = pectra.getFee(consolidationTarget);
         assertEq(fee, 1 wei, "Fee should be 1 wei");
-        
+
         uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
-        
+
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: totalValue}(sources, target);
-        
+
         // Each successful call sends fee amount
         assertEq(consolidationTarget.balance, preBalance + totalValue);
     }
@@ -226,17 +226,17 @@ contract PectraTest is Test {
         for (uint256 i = 0; i < count; i++) {
             pubkeys[i] = validPubkey();
         }
-        
+
         // Get the fee from the target
         uint256 fee = pectra.getFee(consolidationTarget);
         assertEq(fee, 1 wei, "Fee should be 1 wei");
-        
+
         uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
-        
+
         vm.prank(address(pectra));
         pectra.batchSwitch{value: totalValue}(pubkeys);
-        
+
         assertEq(consolidationTarget.balance, preBalance + totalValue);
     }
 
@@ -315,17 +315,17 @@ contract PectraTest is Test {
             data[i][0] = validPubkey();
             data[i][1] = validAmount();
         }
-        
+
         // Get the fee from the target
         uint256 fee = pectra.getFee(exitTarget);
         assertEq(fee, 1 wei, "Fee should be 1 wei");
-        
+
         uint256 totalValue = count * fee;
         uint256 preBalance = exitTarget.balance;
-        
+
         vm.prank(address(pectra));
         pectra.batchELExit{value: totalValue}(data);
-        
+
         assertEq(exitTarget.balance, preBalance + totalValue);
     }
 
@@ -341,11 +341,11 @@ contract PectraTest is Test {
             sources[i] = validPubkey();
         }
         bytes memory target = validPubkey();
-        
+
         // Get the fee from the target
         uint256 fee = pectra.getFee(consolidationTarget);
         assertEq(fee, 1 wei, "Fee should be 1 wei");
-        
+
         uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
 
@@ -367,11 +367,11 @@ contract PectraTest is Test {
         for (uint256 i = 0; i < count; i++) {
             pubkeys[i] = validPubkey();
         }
-        
+
         // Get the fee from the target
         uint256 fee = pectra.getFee(consolidationTarget);
         assertEq(fee, 1 wei, "Fee should be 1 wei");
-        
+
         uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
 
@@ -392,11 +392,11 @@ contract PectraTest is Test {
             data[i][0] = validPubkey();
             data[i][1] = validAmount();
         }
-        
+
         // Get the fee from the target
         uint256 fee = pectra.getFee(exitTarget);
         assertEq(fee, 1 wei, "Fee should be 1 wei");
-        
+
         uint256 totalValue = count * fee;
         uint256 preBalance = exitTarget.balance;
 
