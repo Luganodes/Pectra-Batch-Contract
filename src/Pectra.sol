@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 contract Pectra {
-    address public immutable consolidationTarget = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
-    address public immutable exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
+    address public constant consolidationTarget = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
+    address public constant exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
 
     // Constants for validator-related parameters
     /// @dev The expected length of a validator public key in bytes
