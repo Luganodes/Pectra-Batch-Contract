@@ -27,14 +27,14 @@ contract PectraTest is Test {
     // ─────────────────────────────────────────────────────────────────────────────
     // Utility functions for valid-length data.
     // ─────────────────────────────────────────────────────────────────────────────
-    function validPubkey() internal pure returns (bytes memory) {
-        // Returns a 48-byte array (all zeroes).
-        return new bytes(48);
+    function validPubkey() internal view returns (bytes memory) {
+        // Returns a pubkey with the correct length (all zeroes)
+        return new bytes(pectra.VALIDATOR_PUBKEY_LENGTH());
     }
 
-    function validAmount() internal pure returns (bytes memory) {
-        // Returns an 8-byte array (all zeroes).
-        return new bytes(8);
+    function validAmount() internal view returns (bytes memory) {
+        // Returns an amount with the correct length (all zeroes)
+        return new bytes(pectra.AMOUNT_LENGTH());
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ contract PectraTest is Test {
 
     // Test exceeding maximum number of source validators.
     function testBatchConsolidation_TooManySources() public {
-        uint256 count = 64; // must be <= 63
+        uint256 count = pectra.MAX_SOURCE_VALIDATORS() + 1; // one more than allowed
         bytes[] memory sources = new bytes[](count);
         for (uint256 i = 0; i < count; i++) {
             sources[i] = validPubkey();
@@ -76,8 +76,8 @@ contract PectraTest is Test {
     function testBatchConsolidation_InvalidTargetLength() public {
         bytes[] memory sources = new bytes[](1);
         sources[0] = validPubkey();
-        // Provide an invalid target pubkey (47 bytes instead of 48)
-        bytes memory invalidTarget = new bytes(47);
+        // Provide an invalid target pubkey (one byte less than required)
+        bytes memory invalidTarget = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         vm.prank(address(pectra));
         vm.expectRevert(abi.encodeWithSelector(Pectra.InvalidTargetPubkeyLength.selector, invalidTarget));
         pectra.batchConsolidation{value: 1}(sources, invalidTarget);
@@ -97,8 +97,8 @@ contract PectraTest is Test {
     // Test an invalid source pubkey length emits the proper event.
     function testBatchConsolidation_InvalidSourcePubkeyLength() public {
         bytes[] memory sources = new bytes[](1);
-        // Create an invalid pubkey (47 bytes)
-        sources[0] = new bytes(47);
+        // Create an invalid pubkey (one byte less than required)
+        sources[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         bytes memory target = validPubkey();
         vm.prank(address(pectra));
         vm.expectEmit(false, false, false, true);
@@ -156,7 +156,7 @@ contract PectraTest is Test {
     }
 
     function testBatchSwitch_TooManyValidators() public {
-        uint256 count = 201;
+        uint256 count = pectra.MAX_VALIDATORS() + 1; // one more than allowed
         bytes[] memory pubkeys = new bytes[](count);
         for (uint256 i = 0; i < count; i++) {
             pubkeys[i] = validPubkey();
@@ -177,7 +177,7 @@ contract PectraTest is Test {
 
     function testBatchSwitch_InvalidValidatorPubkeyLength() public {
         bytes[] memory pubkeys = new bytes[](1);
-        pubkeys[0] = new bytes(47);
+        pubkeys[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1); // one byte less than required
         vm.prank(address(pectra));
         vm.expectEmit(false, false, false, true);
         emit Pectra.SwitchFailed("Invalid validator public key length", address(pectra), pubkeys[0]);
@@ -228,7 +228,7 @@ contract PectraTest is Test {
     }
 
     function testBatchELExit_TooManyValidators() public {
-        uint256 count = 201;
+        uint256 count = pectra.MAX_VALIDATORS() + 1; // one more than allowed
         bytes[2][] memory data = new bytes[2][](count);
         for (uint256 i = 0; i < count; i++) {
             data[i][0] = validPubkey();
@@ -252,8 +252,8 @@ contract PectraTest is Test {
 
     function testBatchELExit_InvalidPublicKeyLength() public {
         bytes[2][] memory data = new bytes[2][](1);
-        // Invalid pubkey length (47 bytes)
-        data[0][0] = new bytes(47);
+        // Invalid pubkey length (one byte less than required)
+        data[0][0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         data[0][1] = validAmount();
         vm.prank(address(pectra));
         vm.expectEmit(false, false, false, true);
@@ -266,8 +266,8 @@ contract PectraTest is Test {
     function testBatchELExit_InvalidAmountLength() public {
         bytes[2][] memory data = new bytes[2][](1);
         data[0][0] = validPubkey();
-        // Invalid amount length (7 bytes instead of 8)
-        data[0][1] = new bytes(7);
+        // Invalid amount length (one byte less than required)
+        data[0][1] = new bytes(pectra.AMOUNT_LENGTH() - 1);
         vm.prank(address(pectra));
         vm.expectEmit(false, false, false, true);
         emit Pectra.ExecutionLayerExitFailed("Invalid amount length", address(pectra), data[0][0], data[0][1]);
