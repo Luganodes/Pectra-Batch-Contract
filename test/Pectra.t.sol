@@ -19,17 +19,43 @@ contract PectraTest is Test {
     bytes constant successCode = hex"60006000f3";
     // Minimal bytecode that reverts.
     bytes constant revertCode = hex"6000fd";
+    // Bytecode that returns a constant fee value of 1 wei
+    bytes constant feeCode = hex"6001600052600160206000f3";
 
     // Deploy the contract and set up target addresses with "successful" code.
     function setUp() public {
         pectra = new Pectra();
-        vm.etch(consolidationTarget, successCode);
-        vm.etch(exitTarget, successCode);
+        // Use fee code instead of just success code
+        vm.etch(consolidationTarget, feeCode);
+        vm.etch(exitTarget, feeCode);
         vm.deal(address(pectra), 100 ether);
 
         // Set up EOA for delegation tests
         eoa = vm.addr(EOA_PRIVATE_KEY);
         vm.deal(eoa, 100 ether);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Tests for getFee
+    // ─────────────────────────────────────────────────────────────────────────────
+    
+    function testGetFee_ConsolidationTarget() public view {
+        uint256 fee = pectra.getFee(consolidationTarget);
+        assertEq(fee, 1 wei, "Fee from consolidationTarget should be 1 wei");
+    }
+
+    function testGetFee_ExitTarget() public view {
+        uint256 fee = pectra.getFee(exitTarget);
+        assertEq(fee, 1 wei, "Fee from exitTarget should be 1 wei");
+    }
+
+    function testGetFee_FailedCall() public {
+        // Temporarily set target to revert code
+        vm.etch(consolidationTarget, revertCode);
+        uint256 fee = pectra.getFee(consolidationTarget);
+        assertEq(fee, pectra.MIN_FEE(), "Fee should default to MIN_FEE when call fails");
+        // Reset back to fee code
+        vm.etch(consolidationTarget, feeCode);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -91,17 +117,6 @@ contract PectraTest is Test {
         pectra.batchConsolidation{value: 1}(sources, invalidTarget);
     }
 
-    // Test msg.value not divisible by the number of source validators.
-    function testBatchConsolidation_MsgValueNotDivisible() public {
-        bytes[] memory sources = new bytes[](2);
-        sources[0] = validPubkey();
-        sources[1] = validPubkey();
-        bytes memory target = validPubkey();
-        vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.ValueNotDivisibleByValidators.selector));
-        pectra.batchConsolidation{value: 3}(sources, target); // 3 wei not divisible by 2
-    }
-
     // Test an invalid source pubkey length emits the proper event.
     function testBatchConsolidation_InvalidSourcePubkeyLength() public {
         bytes[] memory sources = new bytes[](1);
@@ -128,7 +143,7 @@ contract PectraTest is Test {
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: 1}(sources, target);
         // Restore successful code.
-        vm.etch(consolidationTarget, successCode);
+        vm.etch(consolidationTarget, feeCode);
     }
 
     // Test successful execution where all calls succeed.
@@ -139,11 +154,18 @@ contract PectraTest is Test {
             sources[i] = validPubkey();
         }
         bytes memory target = validPubkey();
-        uint256 totalValue = count; // 1 wei per call
+        
+        // Get the fee from the target
+        uint256 fee = pectra.getFee(consolidationTarget);
+        assertEq(fee, 1 wei, "Fee should be 1 wei");
+        
+        uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
+        
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: totalValue}(sources, target);
-        // Each successful call sends 1 wei.
+        
+        // Each successful call sends fee amount
         assertEq(consolidationTarget.balance, preBalance + totalValue);
     }
 
@@ -176,15 +198,6 @@ contract PectraTest is Test {
         pectra.batchSwitch{value: count}(pubkeys);
     }
 
-    function testBatchSwitch_MsgValueNotDivisible() public {
-        bytes[] memory pubkeys = new bytes[](2);
-        pubkeys[0] = validPubkey();
-        pubkeys[1] = validPubkey();
-        vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.ValueNotDivisibleByValidators.selector));
-        pectra.batchSwitch{value: 3}(pubkeys);
-    }
-
     function testBatchSwitch_InvalidValidatorPubkeyLength() public {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1); // one byte less than required
@@ -204,7 +217,7 @@ contract PectraTest is Test {
         emit Pectra.SwitchFailed(reasonCode, pubkeys[0]);
         vm.prank(address(pectra));
         pectra.batchSwitch{value: 1}(pubkeys);
-        vm.etch(consolidationTarget, successCode);
+        vm.etch(consolidationTarget, feeCode);
     }
 
     function testBatchSwitch_Success() public {
@@ -213,10 +226,17 @@ contract PectraTest is Test {
         for (uint256 i = 0; i < count; i++) {
             pubkeys[i] = validPubkey();
         }
-        uint256 totalValue = count; // 1 wei each
+        
+        // Get the fee from the target
+        uint256 fee = pectra.getFee(consolidationTarget);
+        assertEq(fee, 1 wei, "Fee should be 1 wei");
+        
+        uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
+        
         vm.prank(address(pectra));
         pectra.batchSwitch{value: totalValue}(pubkeys);
+        
         assertEq(consolidationTarget.balance, preBalance + totalValue);
     }
 
@@ -249,17 +269,6 @@ contract PectraTest is Test {
         vm.prank(address(pectra));
         vm.expectRevert(abi.encodeWithSelector(Pectra.TooManyValidators.selector));
         pectra.batchELExit{value: count}(data);
-    }
-
-    function testBatchELExit_MsgValueNotDivisible() public {
-        bytes[2][] memory data = new bytes[2][](2);
-        for (uint256 i = 0; i < 2; i++) {
-            data[i][0] = validPubkey();
-            data[i][1] = validAmount();
-        }
-        vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.ValueNotDivisibleByValidators.selector));
-        pectra.batchELExit{value: 3}(data);
     }
 
     function testBatchELExit_InvalidPublicKeyLength() public {
@@ -296,7 +305,7 @@ contract PectraTest is Test {
         emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
-        vm.etch(exitTarget, successCode);
+        vm.etch(exitTarget, feeCode);
     }
 
     function testBatchELExit_Success() public {
@@ -306,10 +315,17 @@ contract PectraTest is Test {
             data[i][0] = validPubkey();
             data[i][1] = validAmount();
         }
-        uint256 totalValue = count; // 1 wei per entry
+        
+        // Get the fee from the target
+        uint256 fee = pectra.getFee(exitTarget);
+        assertEq(fee, 1 wei, "Fee should be 1 wei");
+        
+        uint256 totalValue = count * fee;
         uint256 preBalance = exitTarget.balance;
+        
         vm.prank(address(pectra));
         pectra.batchELExit{value: totalValue}(data);
+        
         assertEq(exitTarget.balance, preBalance + totalValue);
     }
 
@@ -325,7 +341,12 @@ contract PectraTest is Test {
             sources[i] = validPubkey();
         }
         bytes memory target = validPubkey();
-        uint256 totalValue = count; // 1 wei per call
+        
+        // Get the fee from the target
+        uint256 fee = pectra.getFee(consolidationTarget);
+        assertEq(fee, 1 wei, "Fee should be 1 wei");
+        
+        uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
 
         // Call the function on the EOA address instead of the contract
@@ -335,7 +356,7 @@ contract PectraTest is Test {
             eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchConsolidation.selector, sources, target));
         assertTrue(success);
 
-        // Each successful call sends 1 wei
+        // Each successful call sends fee amount
         assertEq(consolidationTarget.balance, preBalance + totalValue);
     }
 
@@ -346,7 +367,12 @@ contract PectraTest is Test {
         for (uint256 i = 0; i < count; i++) {
             pubkeys[i] = validPubkey();
         }
-        uint256 totalValue = count; // 1 wei each
+        
+        // Get the fee from the target
+        uint256 fee = pectra.getFee(consolidationTarget);
+        assertEq(fee, 1 wei, "Fee should be 1 wei");
+        
+        uint256 totalValue = count * fee;
         uint256 preBalance = consolidationTarget.balance;
 
         // Call the function on the EOA address instead of the contract
@@ -366,7 +392,12 @@ contract PectraTest is Test {
             data[i][0] = validPubkey();
             data[i][1] = validAmount();
         }
-        uint256 totalValue = count; // 1 wei per entry
+        
+        // Get the fee from the target
+        uint256 fee = pectra.getFee(exitTarget);
+        assertEq(fee, 1 wei, "Fee should be 1 wei");
+        
+        uint256 totalValue = count * fee;
         uint256 preBalance = exitTarget.balance;
 
         // Call the function on the EOA address instead of the contract
@@ -388,18 +419,6 @@ contract PectraTest is Test {
         (bool success,) =
             eoa.call{value: 1}(abi.encodeWithSelector(Pectra.batchConsolidation.selector, sources, target));
         assertFalse(success);
-    }
-
-    // Test delegation with wrong value
-    function testDelegation_WrongValue() public {
-        bytes[] memory pubkeys = new bytes[](2);
-        pubkeys[0] = validPubkey();
-        pubkeys[1] = validPubkey();
-
-        vm.prank(eoa);
-        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
-        (bool success,) = eoa.call{value: 3}(abi.encodeWithSelector(Pectra.batchSwitch.selector, pubkeys));
-        assertFalse(success); // 3 wei not divisible by 2
     }
 
     // Test delegation with wrong private key

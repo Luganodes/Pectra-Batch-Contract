@@ -12,12 +12,12 @@ contract Pectra {
     uint256 public constant AMOUNT_LENGTH = 8;
     /// @dev Minimum number of validators required for batch operations
     uint256 public constant MIN_VALIDATORS = 1;
-    /// @dev Maximum number of source validators allowed in consolidation
+    /// @dev Maximum number of source validators allowed in consolidation,
     uint256 public constant MAX_SOURCE_VALIDATORS = 63;
     /// @dev Maximum number of validators allowed in switch and EL exit operations
     uint256 public constant MAX_VALIDATORS = 200;
-    /// @dev Minimum value required per validator in wei
-    uint256 public constant MIN_VALUE_PER_VALIDATOR = 1 wei;
+    /// @dev Minimum fee required per validator
+    uint256 public constant MIN_FEE = 1 wei;
 
     // Failure reason codes
     uint8 public constant INVALID_PUBKEY_LENGTH = 1;
@@ -33,12 +33,17 @@ contract Pectra {
     error MinimumValidatorRequired();
     error TooManySourceValidators();
     error TooManyValidators();
-    error ValueNotDivisibleByValidators();
-    error InsufficientValuePerValidator();
+    error InsufficientFeePerValidator();
 
     modifier onlySelf() {
         require(msg.sender == address(this), Unauthorized());
         _;
+    }
+
+    function getFee(address target) public view returns (uint256 fee) {
+        (bool readOK, bytes memory feeData) = target.staticcall("");
+        if (!readOK) return MIN_FEE;
+        fee = uint256(bytes32(feeData));
     }
 
     function batchConsolidation(bytes[] calldata sourcePubkeys, bytes calldata targetPubkey)
@@ -52,9 +57,9 @@ contract Pectra {
         if (targetPubkey.length != VALIDATOR_PUBKEY_LENGTH) {
             revert InvalidTargetPubkeyLength(targetPubkey);
         }
-        require(msg.value % batchSize == 0, ValueNotDivisibleByValidators());
-        require(msg.value >= batchSize * MIN_VALUE_PER_VALIDATOR, InsufficientValuePerValidator());
-        uint256 amountPerTx = msg.value / batchSize;
+
+        uint256 consolidationFee = getFee(consolidationTarget);
+        require(msg.value >= batchSize * consolidationFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (sourcePubkeys[i].length != VALIDATOR_PUBKEY_LENGTH) {
@@ -63,7 +68,7 @@ contract Pectra {
             }
 
             bytes memory concatenated = abi.encodePacked(sourcePubkeys[i], targetPubkey);
-            (bool success,) = consolidationTarget.call{value: amountPerTx}(concatenated);
+            (bool success,) = consolidationTarget.call{value: consolidationFee}(concatenated);
             if (!success) {
                 emit ConsolidationFailed(OPERATION_FAILED, sourcePubkeys[i], targetPubkey);
                 continue;
@@ -75,9 +80,9 @@ contract Pectra {
         uint256 batchSize = pubkeys.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
-        require(msg.value % batchSize == 0, ValueNotDivisibleByValidators());
-        require(msg.value >= batchSize * MIN_VALUE_PER_VALIDATOR, InsufficientValuePerValidator());
-        uint256 amountPerTx = msg.value / batchSize;
+
+        uint256 switchFee = getFee(consolidationTarget);
+        require(msg.value >= batchSize * switchFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (pubkeys[i].length != VALIDATOR_PUBKEY_LENGTH) {
@@ -86,7 +91,7 @@ contract Pectra {
             }
 
             bytes memory concatenated = abi.encodePacked(pubkeys[i], pubkeys[i]);
-            (bool success,) = consolidationTarget.call{value: amountPerTx}(concatenated);
+            (bool success,) = consolidationTarget.call{value: switchFee}(concatenated);
             if (!success) {
                 emit SwitchFailed(OPERATION_FAILED, pubkeys[i]);
                 continue;
@@ -98,9 +103,9 @@ contract Pectra {
         uint256 batchSize = data.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
-        require(msg.value % batchSize == 0, ValueNotDivisibleByValidators());
-        require(msg.value >= batchSize * MIN_VALUE_PER_VALIDATOR, InsufficientValuePerValidator());
-        uint256 amountPerTx = msg.value / batchSize;
+
+        uint256 exitFee = getFee(exitTarget);
+        require(msg.value >= batchSize * exitFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (data[i][0].length != VALIDATOR_PUBKEY_LENGTH) {
@@ -113,7 +118,7 @@ contract Pectra {
             }
 
             bytes memory concatenated = abi.encodePacked(data[i][0], data[i][1]);
-            (bool success,) = exitTarget.call{value: amountPerTx}(concatenated);
+            (bool success,) = exitTarget.call{value: exitFee}(concatenated);
             if (!success) {
                 emit ExecutionLayerExitFailed(OPERATION_FAILED, data[i][0], data[i][1]);
                 continue;
