@@ -28,12 +28,31 @@ contract Pectra {
     event SwitchFailed(uint8 reasonCode, bytes pubkey);
     event ExecutionLayerExitFailed(uint8 reasonCode, bytes pubkey, bytes amount);
 
-    error InvalidTargetPubkeyLength(bytes invalidTargetPubkey);
     error Unauthorized();
+    error InvalidTargetPubkeyLength(bytes invalidTargetPubkey);
     error MinimumValidatorRequired();
     error TooManySourceValidators();
     error TooManyValidators();
     error InsufficientFeePerValidator();
+
+    receive() external payable {}
+    fallback() external payable {}
+
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        returns (bytes4)
+    {
+        return this.onERC1155BatchReceived.selector;
+    }
 
     modifier onlySelf() {
         require(msg.sender == address(this), Unauthorized());
