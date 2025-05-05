@@ -36,7 +36,11 @@ contract Pectra {
         _;
     }
 
-    function batchConsolidation(bytes[] memory sourcePubkeys, bytes memory targetPubkey) external payable onlySelf {
+    function batchConsolidation(bytes[] calldata sourcePubkeys, bytes calldata targetPubkey)
+        external
+        payable
+        onlySelf
+    {
         uint256 batchSize = sourcePubkeys.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_SOURCE_VALIDATORS, TooManySourceValidators());
@@ -62,7 +66,7 @@ contract Pectra {
         }
     }
 
-    function batchSwitch(bytes[] memory pubkeys) external payable onlySelf {
+    function batchSwitch(bytes[] calldata pubkeys) external payable onlySelf {
         uint256 batchSize = pubkeys.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
@@ -85,7 +89,7 @@ contract Pectra {
         }
     }
 
-    function batchELExit(bytes[2][] memory data) external payable onlySelf {
+    function batchELExit(bytes[2][] calldata data) external payable onlySelf {
         uint256 batchSize = data.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
