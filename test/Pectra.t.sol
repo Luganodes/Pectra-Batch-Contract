@@ -100,9 +100,10 @@ contract PectraTest is Test {
         // Create an invalid pubkey (one byte less than required)
         sources[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         bytes memory target = validPubkey();
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
+        emit Pectra.ConsolidationFailed(reasonCode, sources[0], target);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.ConsolidationFailed("Invalid source validator public key length", address(pectra), sources[0]);
         pectra.batchConsolidation{value: 1}(sources, target);
     }
 
@@ -113,9 +114,10 @@ contract PectraTest is Test {
         bytes[] memory sources = new bytes[](1);
         sources[0] = validPubkey();
         bytes memory target = validPubkey();
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.OPERATION_FAILED();
+        emit Pectra.ConsolidationFailed(reasonCode, sources[0], target);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.ConsolidationFailed("Consolidation failed", address(pectra), sources[0]);
         pectra.batchConsolidation{value: 1}(sources, target);
         // Restore successful code.
         vm.etch(consolidationTarget, successCode);
@@ -178,9 +180,10 @@ contract PectraTest is Test {
     function testBatchSwitch_InvalidValidatorPubkeyLength() public {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1); // one byte less than required
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
+        emit Pectra.SwitchFailed(reasonCode, pubkeys[0]);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.SwitchFailed("Invalid validator public key length", address(pectra), pubkeys[0]);
         pectra.batchSwitch{value: 1}(pubkeys);
     }
 
@@ -188,9 +191,10 @@ contract PectraTest is Test {
         vm.etch(consolidationTarget, revertCode);
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = validPubkey();
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.OPERATION_FAILED();
+        emit Pectra.SwitchFailed(reasonCode, pubkeys[0]);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.SwitchFailed("Switch failed", address(pectra), pubkeys[0]);
         pectra.batchSwitch{value: 1}(pubkeys);
         vm.etch(consolidationTarget, successCode);
     }
@@ -255,11 +259,10 @@ contract PectraTest is Test {
         // Invalid pubkey length (one byte less than required)
         data[0][0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         data[0][1] = validAmount();
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.ExecutionLayerExitFailed(
-            "Invalid validator public key length", address(pectra), data[0][0], data[0][1]
-        );
         pectra.batchELExit{value: 1}(data);
     }
 
@@ -268,9 +271,10 @@ contract PectraTest is Test {
         data[0][0] = validPubkey();
         // Invalid amount length (one byte less than required)
         data[0][1] = new bytes(pectra.AMOUNT_LENGTH() - 1);
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.INVALID_AMOUNT_LENGTH();
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.ExecutionLayerExitFailed("Invalid amount length", address(pectra), data[0][0], data[0][1]);
         pectra.batchELExit{value: 1}(data);
     }
 
@@ -279,9 +283,10 @@ contract PectraTest is Test {
         bytes[2][] memory data = new bytes[2][](1);
         data[0][0] = validPubkey();
         data[0][1] = validAmount();
+        vm.expectEmit(true, true, true, true);
+        uint8 reasonCode = pectra.OPERATION_FAILED();
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
         vm.prank(address(pectra));
-        vm.expectEmit(false, false, false, true);
-        emit Pectra.ExecutionLayerExitFailed("Execution layer exit failed", address(pectra), data[0][0], data[0][1]);
         pectra.batchELExit{value: 1}(data);
         vm.etch(exitTarget, successCode);
     }

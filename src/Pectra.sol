@@ -19,9 +19,14 @@ contract Pectra {
     /// @dev Minimum value required per validator in wei
     uint256 public constant MIN_VALUE_PER_VALIDATOR = 1 wei;
 
-    event ConsolidationFailed(string message, address sender, bytes failedPubkey);
-    event SwitchFailed(string message, address sender, bytes failedPubkey);
-    event ExecutionLayerExitFailed(string message, address sender, bytes pubkey, bytes amount);
+    // Failure reason codes
+    uint8 public constant INVALID_PUBKEY_LENGTH = 1;
+    uint8 public constant OPERATION_FAILED = 2;
+    uint8 public constant INVALID_AMOUNT_LENGTH = 3;
+
+    event ConsolidationFailed(uint8 reasonCode, bytes sourcePubkey, bytes targetPubkey);
+    event SwitchFailed(uint8 reasonCode, bytes pubkey);
+    event ExecutionLayerExitFailed(uint8 reasonCode, bytes pubkey, bytes amount);
 
     error InvalidTargetPubkeyLength(bytes invalidTargetPubkey);
     error Unauthorized();
@@ -53,14 +58,14 @@ contract Pectra {
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (sourcePubkeys[i].length != VALIDATOR_PUBKEY_LENGTH) {
-                emit ConsolidationFailed("Invalid source validator public key length", msg.sender, sourcePubkeys[i]);
+                emit ConsolidationFailed(INVALID_PUBKEY_LENGTH, sourcePubkeys[i], targetPubkey);
                 continue;
             }
 
             bytes memory concatenated = abi.encodePacked(sourcePubkeys[i], targetPubkey);
             (bool success,) = consolidationTarget.call{value: amountPerTx}(concatenated);
             if (!success) {
-                emit ConsolidationFailed("Consolidation failed", msg.sender, sourcePubkeys[i]);
+                emit ConsolidationFailed(OPERATION_FAILED, sourcePubkeys[i], targetPubkey);
                 continue;
             }
         }
@@ -76,14 +81,14 @@ contract Pectra {
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (pubkeys[i].length != VALIDATOR_PUBKEY_LENGTH) {
-                emit SwitchFailed("Invalid validator public key length", msg.sender, pubkeys[i]);
+                emit SwitchFailed(INVALID_PUBKEY_LENGTH, pubkeys[i]);
                 continue;
             }
 
             bytes memory concatenated = abi.encodePacked(pubkeys[i], pubkeys[i]);
             (bool success,) = consolidationTarget.call{value: amountPerTx}(concatenated);
             if (!success) {
-                emit SwitchFailed("Switch failed", msg.sender, pubkeys[i]);
+                emit SwitchFailed(OPERATION_FAILED, pubkeys[i]);
                 continue;
             }
         }
@@ -99,18 +104,18 @@ contract Pectra {
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (data[i][0].length != VALIDATOR_PUBKEY_LENGTH) {
-                emit ExecutionLayerExitFailed("Invalid validator public key length", msg.sender, data[i][0], data[i][1]);
+                emit ExecutionLayerExitFailed(INVALID_PUBKEY_LENGTH, data[i][0], data[i][1]);
                 continue;
             }
             if (data[i][1].length != AMOUNT_LENGTH) {
-                emit ExecutionLayerExitFailed("Invalid amount length", msg.sender, data[i][0], data[i][1]);
+                emit ExecutionLayerExitFailed(INVALID_AMOUNT_LENGTH, data[i][0], data[i][1]);
                 continue;
             }
 
             bytes memory concatenated = abi.encodePacked(data[i][0], data[i][1]);
             (bool success,) = exitTarget.call{value: amountPerTx}(concatenated);
             if (!success) {
-                emit ExecutionLayerExitFailed("Execution layer exit failed", msg.sender, data[i][0], data[i][1]);
+                emit ExecutionLayerExitFailed(OPERATION_FAILED, data[i][0], data[i][1]);
                 continue;
             }
         }
