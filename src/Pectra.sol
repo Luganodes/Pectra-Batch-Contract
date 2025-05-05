@@ -10,21 +10,27 @@ contract Pectra {
     event ExecutionLayerExitFailed(string message, address sender, bytes pubkey, bytes amount);
 
     error InvalidTargetPubkeyLength(bytes invalidTargetPubkey);
+    error Unauthorized();
+    error MinimumValidatorRequired();
+    error TooManySourceValidators();
+    error TooManyValidators();
+    error ValueNotDivisibleByValidators();
+    error InsufficientValuePerValidator();
 
     modifier onlySelf() {
-        require(msg.sender == address(this), "Unauthorized: Must be executed by the Owner");
+        require(msg.sender == address(this), Unauthorized());
         _;
     }
 
     function batchConsolidation(bytes[] memory sourcePubkeys, bytes memory targetPubkey) external payable onlySelf {
         uint256 batchSize = sourcePubkeys.length;
-        require(batchSize >= 1, "At least one source validator required");
-        require(batchSize <= 63, "Number of source validators must be less than 64, since Max EB is 2048 ETH");
+        require(batchSize >= 1, MinimumValidatorRequired());
+        require(batchSize <= 63, TooManySourceValidators());
         if (targetPubkey.length != 48) {
             revert InvalidTargetPubkeyLength(targetPubkey);
         }
-        require(msg.value % batchSize == 0, "msg.value must be divisible by length of source validators");
-        require(msg.value >= batchSize * 1 wei, "1 wei per source validator is required");
+        require(msg.value % batchSize == 0, ValueNotDivisibleByValidators());
+        require(msg.value >= batchSize * 1 wei, InsufficientValuePerValidator());
         uint256 amountPerTx = msg.value / batchSize;
 
         for (uint256 i = 0; i < batchSize; i++) {
@@ -44,10 +50,10 @@ contract Pectra {
 
     function batchSwitch(bytes[] memory pubkeys) external payable onlySelf {
         uint256 batchSize = pubkeys.length;
-        require(batchSize >= 1, "At least one validator required");
-        require(batchSize <= 200, "Number of validators must be less than 200");
-        require(msg.value % batchSize == 0, "msg.value must be divisible by length of validators");
-        require(msg.value >= batchSize * 1 wei, "1 wei per validator is required");
+        require(batchSize >= 1, MinimumValidatorRequired());
+        require(batchSize <= 200, TooManyValidators());
+        require(msg.value % batchSize == 0, ValueNotDivisibleByValidators());
+        require(msg.value >= batchSize * 1 wei, InsufficientValuePerValidator());
         uint256 amountPerTx = msg.value / batchSize;
 
         for (uint256 i = 0; i < batchSize; i++) {
@@ -67,10 +73,10 @@ contract Pectra {
 
     function batchELExit(bytes[2][] memory data) external payable onlySelf {
         uint256 batchSize = data.length;
-        require(batchSize >= 1, "At least one entry required");
-        require(batchSize <= 200, "Number of validators must be less than 200");
-        require(msg.value % batchSize == 0, "msg.value must be divisible by length of validators");
-        require(msg.value >= batchSize * 1 wei, "1 wei per validator is required");
+        require(batchSize >= 1, MinimumValidatorRequired());
+        require(batchSize <= 200, TooManyValidators());
+        require(msg.value % batchSize == 0, ValueNotDivisibleByValidators());
+        require(msg.value >= batchSize * 1 wei, InsufficientValuePerValidator());
         uint256 amountPerTx = msg.value / batchSize;
 
         for (uint256 i = 0; i < batchSize; i++) {
