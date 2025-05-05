@@ -7,6 +7,10 @@ import "../src/Pectra.sol";
 contract PectraTest is Test {
     Pectra public pectra;
 
+    // Add a private key for delegation testing
+    uint256 constant EOA_PRIVATE_KEY = 0x1234; // Example private key
+    address eoa;
+
     // These addresses are hardcoded in the Pectra contract.
     address constant consolidationTarget = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
     address constant exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
@@ -22,6 +26,10 @@ contract PectraTest is Test {
         vm.etch(consolidationTarget, successCode);
         vm.etch(exitTarget, successCode);
         vm.deal(address(pectra), 100 ether);
+
+        // Set up EOA for delegation tests
+        eoa = vm.addr(EOA_PRIVATE_KEY);
+        vm.deal(eoa, 100 ether);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -303,5 +311,124 @@ contract PectraTest is Test {
         vm.prank(address(pectra));
         pectra.batchELExit{value: totalValue}(data);
         assertEq(exitTarget.balance, preBalance + totalValue);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Tests for EIP-7702 Delegation
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    // Test batchConsolidation via delegation
+    function testBatchConsolidation_Delegation() public {
+        uint256 count = 3;
+        bytes[] memory sources = new bytes[](count);
+        for (uint256 i = 0; i < count; i++) {
+            sources[i] = validPubkey();
+        }
+        bytes memory target = validPubkey();
+        uint256 totalValue = count; // 1 wei per call
+        uint256 preBalance = consolidationTarget.balance;
+
+        // Call the function on the EOA address instead of the contract
+        vm.prank(eoa);
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        (bool success,) =
+            eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchConsolidation.selector, sources, target));
+        assertTrue(success);
+
+        // Each successful call sends 1 wei
+        assertEq(consolidationTarget.balance, preBalance + totalValue);
+    }
+
+    // Test batchSwitch via delegation
+    function testBatchSwitch_Delegation() public {
+        uint256 count = 2;
+        bytes[] memory pubkeys = new bytes[](count);
+        for (uint256 i = 0; i < count; i++) {
+            pubkeys[i] = validPubkey();
+        }
+        uint256 totalValue = count; // 1 wei each
+        uint256 preBalance = consolidationTarget.balance;
+
+        // Call the function on the EOA address instead of the contract
+        vm.prank(eoa);
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        (bool success,) = eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchSwitch.selector, pubkeys));
+        assertTrue(success);
+
+        assertEq(consolidationTarget.balance, preBalance + totalValue);
+    }
+
+    // Test batchELExit via delegation
+    function testBatchELExit_Delegation() public {
+        uint256 count = 2;
+        bytes[2][] memory data = new bytes[2][](count);
+        for (uint256 i = 0; i < count; i++) {
+            data[i][0] = validPubkey();
+            data[i][1] = validAmount();
+        }
+        uint256 totalValue = count; // 1 wei per entry
+        uint256 preBalance = exitTarget.balance;
+
+        // Call the function on the EOA address instead of the contract
+        vm.prank(eoa);
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        (bool success,) = eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchELExit.selector, data));
+        assertTrue(success);
+
+        assertEq(exitTarget.balance, preBalance + totalValue);
+    }
+
+    // Test delegation with invalid parameters
+    function testDelegation_InvalidParameters() public {
+        bytes[] memory sources = new bytes[](0); // Empty array should fail
+        bytes memory target = validPubkey();
+
+        vm.prank(eoa);
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        (bool success,) =
+            eoa.call{value: 1}(abi.encodeWithSelector(Pectra.batchConsolidation.selector, sources, target));
+        assertFalse(success);
+    }
+
+    // Test delegation with wrong value
+    function testDelegation_WrongValue() public {
+        bytes[] memory pubkeys = new bytes[](2);
+        pubkeys[0] = validPubkey();
+        pubkeys[1] = validPubkey();
+
+        vm.prank(eoa);
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        (bool success,) = eoa.call{value: 3}(abi.encodeWithSelector(Pectra.batchSwitch.selector, pubkeys));
+        assertFalse(success); // 3 wei not divisible by 2
+    }
+
+    // Test delegation with wrong private key
+    function testDelegation_WrongPrivateKey() public {
+        uint256 wrongPrivateKey = 0x5678; // Different from EOA_PRIVATE_KEY
+        bytes[] memory sources = new bytes[](1);
+        sources[0] = validPubkey();
+        bytes memory target = validPubkey();
+
+        // Create a different EOA address from the wrong private key
+        address wrongEoa = vm.addr(wrongPrivateKey);
+        vm.deal(wrongEoa, 100 ether);
+        vm.prank(wrongEoa);
+        // Sign with the wrong private key but for the wrong EOA
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        (bool success,) =
+            eoa.call{value: 1}(abi.encodeWithSelector(Pectra.batchConsolidation.selector, sources, target));
+        assertFalse(success);
+    }
+
+    // Test that delegation fails due to onlySelf modifier
+    function testDelegation_FailsDueToOnlySelf() public {
+        bytes[] memory sources = new bytes[](1);
+        sources[0] = validPubkey();
+        bytes memory target = validPubkey();
+
+        vm.prank(eoa);
+        vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
+        vm.expectRevert(abi.encodeWithSelector(Pectra.Unauthorized.selector));
+        pectra.batchConsolidation{value: 1}(sources, target);
     }
 }
