@@ -33,7 +33,7 @@ contract Pectra {
         require(msg.value >= batchSize * 1 wei, InsufficientValuePerValidator());
         uint256 amountPerTx = msg.value / batchSize;
 
-        for (uint256 i = 0; i < batchSize; i++) {
+        for (uint256 i = 0; i < batchSize; ++i) {
             if (sourcePubkeys[i].length != 48) {
                 emit ConsolidationFailed("Invalid source validator public key length", msg.sender, sourcePubkeys[i]);
                 continue;
@@ -56,7 +56,7 @@ contract Pectra {
         require(msg.value >= batchSize * 1 wei, InsufficientValuePerValidator());
         uint256 amountPerTx = msg.value / batchSize;
 
-        for (uint256 i = 0; i < batchSize; i++) {
+        for (uint256 i = 0; i < batchSize; ++i) {
             if (pubkeys[i].length != 48) {
                 emit SwitchFailed("Invalid validator public key length", msg.sender, pubkeys[i]);
                 continue;
@@ -79,7 +79,7 @@ contract Pectra {
         require(msg.value >= batchSize * 1 wei, InsufficientValuePerValidator());
         uint256 amountPerTx = msg.value / batchSize;
 
-        for (uint256 i = 0; i < batchSize; i++) {
+        for (uint256 i = 0; i < batchSize; ++i) {
             if (data[i][0].length != 48) {
                 emit ExecutionLayerExitFailed("Invalid validator public key length", msg.sender, data[i][0], data[i][1]);
                 continue;
