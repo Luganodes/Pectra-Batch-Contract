@@ -18,12 +18,8 @@ contract Pectra {
     uint256 public constant MAX_VALIDATORS = 200;
     /// @dev Minimum fee required per validator
     uint256 public constant MIN_FEE = 1 wei;
-    /// @dev Maximum withdrawal amount as a uint64 (representing 2048 ether)
-    // Since we're working with 8-byte amounts, this is the uint64 representation of 2048 ether
-    // 2048 * 10^18 = 2048000000000000000000, but this overflows uint64
-    // For implementation purposes, we'll use the maximum uint64 value that represents a
-    // value close to 2048 ether when interpreted by the consensus layer
-    uint64 public constant MAX_WITHDRAWAL_AMOUNT = 0x7FFFFFFFFFFFFFFF; // Max safe value (half of uint64 max)
+    /// @dev Maximum withdrawal amount as a uint64 (representing 2048 ether in gwei)
+    uint64 public constant MAX_WITHDRAWAL_AMOUNT = 0x1DCD6500000;
 
     // Failure reason codes
     uint8 public constant INVALID_PUBKEY_LENGTH = 1;

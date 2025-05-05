@@ -74,16 +74,16 @@ contract PectraTest is Test {
     function validAmountValue(uint256 value) internal view returns (bytes memory) {
         // Returns an amount with the correct length and specified value
         bytes memory amount = new bytes(pectra.AMOUNT_LENGTH());
-
-        // For large values like 3000 ether, most of the value will be lost
-        // in the conversion to a uint64 (8 bytes), as it overflows.
-        // For testing purposes, we'll use the value directly in wei units
-
+        
+        // Value is expected to be in Gwei units
+        // (1 ETH = 10^9 Gwei, 1 Gwei = 10^9 wei)
+        // For testing purposes, we use the value directly as Gwei
+        
         // Convert uint256 to bytes in big-endian format
         for (uint256 i = 0; i < pectra.AMOUNT_LENGTH(); i++) {
             amount[i] = bytes1(uint8(value >> (8 * (pectra.AMOUNT_LENGTH() - 1 - i))));
         }
-
+        
         return amount;
     }
 
@@ -370,7 +370,7 @@ contract PectraTest is Test {
         vm.etch(exitTarget, revertCode);
         bytes[3][] memory data = new bytes[3][](1);
         data[0][0] = validPubkey();
-        data[0][1] = validAmountValue(1 ether); // Valid non-zero amount
+        data[0][1] = validAmountValue(1000000000); // Valid non-zero amount (1 ether in gwei)
         data[0][2] = confirmFullExit();
         vm.expectEmit(true, true, true, true);
         uint8 reasonCode = pectra.OPERATION_FAILED();
@@ -385,7 +385,7 @@ contract PectraTest is Test {
         bytes[3][] memory data = new bytes[3][](count);
         for (uint256 i = 0; i < count; i++) {
             data[i][0] = validPubkey();
-            data[i][1] = validAmountValue(1 ether); // Valid non-zero amount
+            data[i][1] = validAmountValue(1000000000); // Valid non-zero amount (1 ether in gwei)
             data[i][2] = confirmFullExit(); // Not needed but included for consistency
         }
 
@@ -485,7 +485,7 @@ contract PectraTest is Test {
         bytes[3][] memory data = new bytes[3][](count);
         for (uint256 i = 0; i < count; i++) {
             data[i][0] = validPubkey();
-            data[i][1] = validAmountValue(1 ether);
+            data[i][1] = validAmountValue(1000000000); // Valid non-zero amount (1 ether in gwei)
             data[i][2] = confirmFullExit();
         }
 
