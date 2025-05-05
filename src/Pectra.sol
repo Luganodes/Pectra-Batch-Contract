@@ -36,7 +36,11 @@ contract Pectra {
         _;
     }
 
-    function batchConsolidation(bytes[] calldata sourcePubkeys, bytes calldata targetPubkey) external payable onlySelf {
+    function batchConsolidation(bytes[] calldata sourcePubkeys, bytes calldata targetPubkey)
+        external
+        payable
+        onlySelf
+    {
         uint256 batchSize = sourcePubkeys.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_SOURCE_VALIDATORS, TooManySourceValidators());
