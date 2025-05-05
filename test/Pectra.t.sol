@@ -16,7 +16,7 @@ contract PectraTest is Test {
     // Minimal bytecode that reverts.
     bytes constant revertCode = hex"6000fd";
 
-    // Deploy the contract and set up target addresses with “successful” code.
+    // Deploy the contract and set up target addresses with "successful" code.
     function setUp() public {
         pectra = new Pectra();
         vm.etch(consolidationTarget, successCode);
@@ -46,7 +46,7 @@ contract PectraTest is Test {
         bytes[] memory sources = new bytes[](1);
         sources[0] = validPubkey();
         bytes memory target = validPubkey();
-        vm.expectRevert("Unauthorized: Must be executed by the Owner");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.Unauthorized.selector));
         pectra.batchConsolidation{value: 1}(sources, target);
     }
 
@@ -55,7 +55,7 @@ contract PectraTest is Test {
         bytes[] memory sources = new bytes[](0);
         bytes memory target = validPubkey();
         vm.prank(address(pectra));
-        vm.expectRevert("At least one source validator required");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
         pectra.batchConsolidation{value: 1}(sources, target);
     }
 
@@ -68,7 +68,7 @@ contract PectraTest is Test {
         }
         bytes memory target = validPubkey();
         vm.prank(address(pectra));
-        vm.expectRevert("Number of source validators must be less than 64, since Max EB is 2048 ETH");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.TooManySourceValidators.selector));
         pectra.batchConsolidation{value: count}(sources, target);
     }
 
@@ -90,7 +90,7 @@ contract PectraTest is Test {
         sources[1] = validPubkey();
         bytes memory target = validPubkey();
         vm.prank(address(pectra));
-        vm.expectRevert("msg.value must be divisible by length of source validators");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.ValueNotDivisibleByValidators.selector));
         pectra.batchConsolidation{value: 3}(sources, target); // 3 wei not divisible by 2
     }
 
@@ -144,14 +144,14 @@ contract PectraTest is Test {
     function testBatchSwitch_Unauthorized() public {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = validPubkey();
-        vm.expectRevert("Unauthorized: Must be executed by the Owner");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.Unauthorized.selector));
         pectra.batchSwitch{value: 1}(pubkeys);
     }
 
     function testBatchSwitch_EmptyValidators() public {
         bytes[] memory pubkeys = new bytes[](0);
         vm.prank(address(pectra));
-        vm.expectRevert("At least one validator required");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
         pectra.batchSwitch{value: 1}(pubkeys);
     }
 
@@ -162,7 +162,7 @@ contract PectraTest is Test {
             pubkeys[i] = validPubkey();
         }
         vm.prank(address(pectra));
-        vm.expectRevert("Number of validators must be less than 200");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.TooManyValidators.selector));
         pectra.batchSwitch{value: count}(pubkeys);
     }
 
@@ -171,7 +171,7 @@ contract PectraTest is Test {
         pubkeys[0] = validPubkey();
         pubkeys[1] = validPubkey();
         vm.prank(address(pectra));
-        vm.expectRevert("msg.value must be divisible by length of validators");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.ValueNotDivisibleByValidators.selector));
         pectra.batchSwitch{value: 3}(pubkeys);
     }
 
@@ -216,14 +216,14 @@ contract PectraTest is Test {
         bytes[2][] memory data = new bytes[2][](1);
         data[0][0] = validPubkey();
         data[0][1] = validAmount();
-        vm.expectRevert("Unauthorized: Must be executed by the Owner");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.Unauthorized.selector));
         pectra.batchELExit{value: 1}(data);
     }
 
     function testBatchELExit_EmptyData() public {
         bytes[2][] memory data = new bytes[2][](0);
         vm.prank(address(pectra));
-        vm.expectRevert("At least one entry required");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
         pectra.batchELExit{value: 1}(data);
     }
 
@@ -235,7 +235,7 @@ contract PectraTest is Test {
             data[i][1] = validAmount();
         }
         vm.prank(address(pectra));
-        vm.expectRevert("Number of validators must be less than 200");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.TooManyValidators.selector));
         pectra.batchELExit{value: count}(data);
     }
 
@@ -246,7 +246,7 @@ contract PectraTest is Test {
             data[i][1] = validAmount();
         }
         vm.prank(address(pectra));
-        vm.expectRevert("msg.value must be divisible by length of validators");
+        vm.expectRevert(abi.encodeWithSelector(Pectra.ValueNotDivisibleByValidators.selector));
         pectra.batchELExit{value: 3}(data);
     }
 
