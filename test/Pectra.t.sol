@@ -74,16 +74,16 @@ contract PectraTest is Test {
     function validAmountValue(uint256 value) internal view returns (bytes memory) {
         // Returns an amount with the correct length and specified value
         bytes memory amount = new bytes(pectra.AMOUNT_LENGTH());
-        
+
         // Value is expected to be in Gwei units
         // (1 ETH = 10^9 Gwei, 1 Gwei = 10^9 wei)
         // For testing purposes, we use the value directly as Gwei
-        
+
         // Convert uint256 to bytes in big-endian format
         for (uint256 i = 0; i < pectra.AMOUNT_LENGTH(); i++) {
             amount[i] = bytes1(uint8(value >> (8 * (pectra.AMOUNT_LENGTH() - 1 - i))));
         }
-        
+
         return amount;
     }
 
