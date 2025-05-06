@@ -154,8 +154,7 @@ contract PectraTest is Test {
         sources[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         bytes memory target = validPubkey();
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
-        emit Pectra.ConsolidationFailed(reasonCode, sources[0], target);
+        emit Pectra.ConsolidationFailed(Pectra.FailureReason.INVALID_PUBKEY_LENGTH, sources[0], target);
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: 1}(sources, target);
     }
@@ -168,8 +167,7 @@ contract PectraTest is Test {
         sources[0] = validPubkey();
         bytes memory target = validPubkey();
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.OPERATION_FAILED();
-        emit Pectra.ConsolidationFailed(reasonCode, sources[0], target);
+        emit Pectra.ConsolidationFailed(Pectra.FailureReason.OPERATION_FAILED, sources[0], target);
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: 1}(sources, target);
         // Restore successful code.
@@ -232,8 +230,7 @@ contract PectraTest is Test {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1); // one byte less than required
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
-        emit Pectra.SwitchFailed(reasonCode, pubkeys[0]);
+        emit Pectra.SwitchFailed(Pectra.FailureReason.INVALID_PUBKEY_LENGTH, pubkeys[0]);
         vm.prank(address(pectra));
         pectra.batchSwitch{value: 1}(pubkeys);
     }
@@ -243,8 +240,7 @@ contract PectraTest is Test {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = validPubkey();
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.OPERATION_FAILED();
-        emit Pectra.SwitchFailed(reasonCode, pubkeys[0]);
+        emit Pectra.SwitchFailed(Pectra.FailureReason.OPERATION_FAILED, pubkeys[0]);
         vm.prank(address(pectra));
         pectra.batchSwitch{value: 1}(pubkeys);
         vm.etch(consolidationTarget, feeCode);
@@ -310,8 +306,7 @@ contract PectraTest is Test {
         data[0].amount = 0;
         data[0].isFullExit = true;
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
+        emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.INVALID_PUBKEY_LENGTH, data[0].pubkey, data[0].amount);
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
     }
@@ -322,8 +317,9 @@ contract PectraTest is Test {
         data[0].amount = 0; // Zero amount
         data[0].isFullExit = false; // Flag set to false
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.FULL_EXIT_NOT_CONFIRMED();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
+        emit Pectra.ExecutionLayerExitFailed(
+            Pectra.FailureReason.FULL_EXIT_NOT_CONFIRMED, data[0].pubkey, data[0].amount
+        );
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
     }
@@ -336,8 +332,9 @@ contract PectraTest is Test {
         data[0].isFullExit = true; // Not needed but included for consistency
 
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.AMOUNT_EXCEEDS_MAXIMUM();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
+        emit Pectra.ExecutionLayerExitFailed(
+            Pectra.FailureReason.AMOUNT_EXCEEDS_MAXIMUM, data[0].pubkey, data[0].amount
+        );
 
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
@@ -350,8 +347,7 @@ contract PectraTest is Test {
         data[0].amount = 1000000000; // 1 ether in gwei
         data[0].isFullExit = true; // Not needed but included for consistency
         vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.OPERATION_FAILED();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
+        emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.OPERATION_FAILED, data[0].pubkey, data[0].amount);
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
         vm.etch(exitTarget, feeCode);
