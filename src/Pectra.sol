@@ -21,17 +21,19 @@ contract Pectra {
     /// @dev Maximum withdrawal amount as a uint64 (representing 2048 ether in gwei)
     uint64 public constant MAX_WITHDRAWAL_AMOUNT = 0x1DCD6500000;
 
-    // Failure reason codes
-    uint8 public constant INVALID_PUBKEY_LENGTH = 1;
-    uint8 public constant OPERATION_FAILED = 2;
-    uint8 public constant INVALID_AMOUNT_LENGTH = 3;
-    uint8 public constant INVALID_AMOUNT_VALUE = 4;
-    uint8 public constant FULL_EXIT_NOT_CONFIRMED = 5;
-    uint8 public constant AMOUNT_EXCEEDS_MAXIMUM = 6;
+    // Failure reason codes as enum
+    enum FailureReason {
+        INVALID_PUBKEY_LENGTH,
+        OPERATION_FAILED,
+        INVALID_AMOUNT_LENGTH,
+        INVALID_AMOUNT_VALUE,
+        FULL_EXIT_NOT_CONFIRMED,
+        AMOUNT_EXCEEDS_MAXIMUM
+    }
 
-    event ConsolidationFailed(uint8 reasonCode, bytes sourcePubkey, bytes targetPubkey);
-    event SwitchFailed(uint8 reasonCode, bytes pubkey);
-    event ExecutionLayerExitFailed(uint8 reasonCode, bytes pubkey, bytes amount);
+    event ConsolidationFailed(FailureReason reasonCode, bytes sourcePubkey, bytes targetPubkey);
+    event SwitchFailed(FailureReason reasonCode, bytes pubkey);
+    event ExecutionLayerExitFailed(FailureReason reasonCode, bytes pubkey, uint64 amount);
 
     error Unauthorized();
     error InvalidTargetPubkeyLength(bytes invalidTargetPubkey);
@@ -93,14 +95,14 @@ contract Pectra {
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (sourcePubkeys[i].length != VALIDATOR_PUBKEY_LENGTH) {
-                emit ConsolidationFailed(INVALID_PUBKEY_LENGTH, sourcePubkeys[i], targetPubkey);
+                emit ConsolidationFailed(FailureReason.INVALID_PUBKEY_LENGTH, sourcePubkeys[i], targetPubkey);
                 continue;
             }
 
             bytes memory concatenated = abi.encodePacked(sourcePubkeys[i], targetPubkey);
             (bool success,) = consolidationTarget.call{value: consolidationFee}(concatenated);
             if (!success) {
-                emit ConsolidationFailed(OPERATION_FAILED, sourcePubkeys[i], targetPubkey);
+                emit ConsolidationFailed(FailureReason.OPERATION_FAILED, sourcePubkeys[i], targetPubkey);
                 continue;
             }
         }
@@ -116,14 +118,14 @@ contract Pectra {
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (pubkeys[i].length != VALIDATOR_PUBKEY_LENGTH) {
-                emit SwitchFailed(INVALID_PUBKEY_LENGTH, pubkeys[i]);
+                emit SwitchFailed(FailureReason.INVALID_PUBKEY_LENGTH, pubkeys[i]);
                 continue;
             }
 
             bytes memory concatenated = abi.encodePacked(pubkeys[i], pubkeys[i]);
             (bool success,) = consolidationTarget.call{value: switchFee}(concatenated);
             if (!success) {
-                emit SwitchFailed(OPERATION_FAILED, pubkeys[i]);
+                emit SwitchFailed(FailureReason.OPERATION_FAILED, pubkeys[i]);
                 continue;
             }
         }
@@ -146,19 +148,19 @@ contract Pectra {
 
         for (uint256 i = 0; i < batchSize; ++i) {
             if (data[i].pubkey.length != VALIDATOR_PUBKEY_LENGTH) {
-                emit ExecutionLayerExitFailed(INVALID_PUBKEY_LENGTH, data[i].pubkey, abi.encodePacked(data[i].amount));
+                emit ExecutionLayerExitFailed(FailureReason.INVALID_PUBKEY_LENGTH, data[i].pubkey, data[i].amount);
                 continue;
             }
 
             bool isZeroAmount = data[i].amount == 0;
 
             if (isZeroAmount && !data[i].isFullExit) {
-                emit ExecutionLayerExitFailed(FULL_EXIT_NOT_CONFIRMED, data[i].pubkey, abi.encodePacked(data[i].amount));
+                emit ExecutionLayerExitFailed(FailureReason.FULL_EXIT_NOT_CONFIRMED, data[i].pubkey, data[i].amount);
                 continue;
             }
 
             if (!isZeroAmount && data[i].amount > MAX_WITHDRAWAL_AMOUNT) {
-                emit ExecutionLayerExitFailed(AMOUNT_EXCEEDS_MAXIMUM, data[i].pubkey, abi.encodePacked(data[i].amount));
+                emit ExecutionLayerExitFailed(FailureReason.AMOUNT_EXCEEDS_MAXIMUM, data[i].pubkey, data[i].amount);
                 continue;
             }
 
@@ -167,7 +169,7 @@ contract Pectra {
             bytes memory concatenated = abi.encodePacked(data[i].pubkey, amountBytes);
             (bool success,) = exitTarget.call{value: exitFee}(concatenated);
             if (!success) {
-                emit ExecutionLayerExitFailed(OPERATION_FAILED, data[i].pubkey, amountBytes);
+                emit ExecutionLayerExitFailed(FailureReason.OPERATION_FAILED, data[i].pubkey, data[i].amount);
                 continue;
             }
         }
