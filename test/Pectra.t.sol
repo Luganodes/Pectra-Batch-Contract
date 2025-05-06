@@ -275,16 +275,16 @@ contract PectraTest is Test {
     // ─────────────────────────────────────────────────────────────────────────────
 
     function testBatchELExit_Unauthorized() public {
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-        data[0][1] = validAmount();
-        data[0][2] = confirmFullExit();
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        data[0].amount = 0;
+        data[0].isFullExit = true;
         vm.expectRevert(abi.encodeWithSelector(Pectra.Unauthorized.selector));
         pectra.batchELExit{value: 1}(data);
     }
 
     function testBatchELExit_EmptyData() public {
-        bytes[3][] memory data = new bytes[3][](0);
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](0);
         vm.prank(address(pectra));
         vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
         pectra.batchELExit{value: 1}(data);
@@ -292,11 +292,11 @@ contract PectraTest is Test {
 
     function testBatchELExit_TooManyValidators() public {
         uint256 count = pectra.MAX_VALIDATORS() + 1; // one more than allowed
-        bytes[3][] memory data = new bytes[3][](count);
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](count);
         for (uint256 i = 0; i < count; i++) {
-            data[i][0] = validPubkey();
-            data[i][1] = validAmount();
-            data[i][2] = confirmFullExit();
+            data[i].pubkey = validPubkey();
+            data[i].amount = 0;
+            data[i].isFullExit = true;
         }
         vm.prank(address(pectra));
         vm.expectRevert(abi.encodeWithSelector(Pectra.TooManyValidators.selector));
@@ -304,63 +304,40 @@ contract PectraTest is Test {
     }
 
     function testBatchELExit_InvalidPublicKeyLength() public {
-        bytes[3][] memory data = new bytes[3][](1);
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
         // Invalid pubkey length (one byte less than required)
-        data[0][0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
-        data[0][1] = validAmount();
-        data[0][2] = confirmFullExit();
+        data[0].pubkey = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
+        data[0].amount = 0;
+        data[0].isFullExit = true;
         vm.expectEmit(true, true, true, true);
         uint8 reasonCode = pectra.INVALID_PUBKEY_LENGTH();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
-        vm.prank(address(pectra));
-        pectra.batchELExit{value: 1}(data);
-    }
-
-    function testBatchELExit_InvalidAmountLength() public {
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-        // Invalid amount length (one byte less than required)
-        data[0][1] = new bytes(pectra.AMOUNT_LENGTH() - 1);
-        data[0][2] = confirmFullExit();
-        vm.expectEmit(true, true, true, true);
-        uint8 reasonCode = pectra.INVALID_AMOUNT_LENGTH();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
     }
 
     function testBatchELExit_ZeroAmountWithoutConfirmation() public {
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-        data[0][1] = validAmount(); // All zeros
-        data[0][2] = rejectFullExit(); // Flag set to false
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        data[0].amount = 0; // Zero amount
+        data[0].isFullExit = false; // Flag set to false
         vm.expectEmit(true, true, true, true);
         uint8 reasonCode = pectra.FULL_EXIT_NOT_CONFIRMED();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
     }
 
     function testBatchELExit_ExceedsMaximumAmount() public {
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-
-        // Use a custom byte array for a value that's definitely over MAX_WITHDRAWAL_AMOUNT
-        // We'll create a value that when interpreted in uint64 will exceed 2048 ether
-        bytes memory excessiveAmount = new bytes(pectra.AMOUNT_LENGTH());
-        // Set highest bit to ensure it's large (over 2^63 which is much more than 2048 ether)
-        excessiveAmount[0] = bytes1(uint8(0xA1)); // This will make it much larger than 2048 ether
-        // Fill rest with some non-zero values
-        for (uint256 i = 1; i < pectra.AMOUNT_LENGTH(); i++) {
-            excessiveAmount[i] = bytes1(uint8(0x5D));
-        }
-
-        data[0][1] = excessiveAmount;
-        data[0][2] = confirmFullExit();
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        // Set amount to exceed MAX_WITHDRAWAL_AMOUNT
+        data[0].amount = pectra.MAX_WITHDRAWAL_AMOUNT() + 1;
+        data[0].isFullExit = true; // Not needed but included for consistency
 
         vm.expectEmit(true, true, true, true);
         uint8 reasonCode = pectra.AMOUNT_EXCEEDS_MAXIMUM();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
 
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
@@ -368,13 +345,13 @@ contract PectraTest is Test {
 
     function testBatchELExit_FailedCall() public {
         vm.etch(exitTarget, revertCode);
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-        data[0][1] = validAmountValue(1000000000); // Valid non-zero amount (1 ether in gwei)
-        data[0][2] = confirmFullExit();
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        data[0].amount = 1000000000; // 1 ether in gwei
+        data[0].isFullExit = true; // Not needed but included for consistency
         vm.expectEmit(true, true, true, true);
         uint8 reasonCode = pectra.OPERATION_FAILED();
-        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0][0], data[0][1]);
+        emit Pectra.ExecutionLayerExitFailed(reasonCode, data[0].pubkey, abi.encodePacked(data[0].amount));
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
         vm.etch(exitTarget, feeCode);
@@ -382,11 +359,11 @@ contract PectraTest is Test {
 
     function testBatchELExit_SuccessWithValidAmount() public {
         uint256 count = 2;
-        bytes[3][] memory data = new bytes[3][](count);
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](count);
         for (uint256 i = 0; i < count; i++) {
-            data[i][0] = validPubkey();
-            data[i][1] = validAmountValue(1000000000); // Valid non-zero amount (1 ether in gwei)
-            data[i][2] = confirmFullExit(); // Not needed but included for consistency
+            data[i].pubkey = validPubkey();
+            data[i].amount = 1000000000; // 1 ether in gwei
+            data[i].isFullExit = true; // Not needed but included for consistency
         }
 
         // Get the fee from the target
@@ -404,11 +381,11 @@ contract PectraTest is Test {
 
     function testBatchELExit_SuccessWithZeroAmount() public {
         uint256 count = 2;
-        bytes[3][] memory data = new bytes[3][](count);
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](count);
         for (uint256 i = 0; i < count; i++) {
-            data[i][0] = validPubkey();
-            data[i][1] = validAmount(); // Zero amount
-            data[i][2] = confirmFullExit(); // Explicitly confirm full exit
+            data[i].pubkey = validPubkey();
+            data[i].amount = 0; // Zero amount
+            data[i].isFullExit = true; // Explicitly confirm full exit
         }
 
         // Get the fee from the target
@@ -482,11 +459,11 @@ contract PectraTest is Test {
     // Test batchELExit via delegation
     function testBatchELExit_Delegation() public {
         uint256 count = 2;
-        bytes[3][] memory data = new bytes[3][](count);
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](count);
         for (uint256 i = 0; i < count; i++) {
-            data[i][0] = validPubkey();
-            data[i][1] = validAmountValue(1000000000); // Valid non-zero amount (1 ether in gwei)
-            data[i][2] = confirmFullExit();
+            data[i].pubkey = validPubkey();
+            data[i].amount = 1000000000; // 1 ether in gwei
+            data[i].isFullExit = true;
         }
 
         // Get the fee from the target
@@ -507,7 +484,7 @@ contract PectraTest is Test {
 
     // Test delegation with invalid parameters
     function testDelegation_InvalidParameters() public {
-        bytes[3][] memory data = new bytes[3][](0); // Empty array should fail
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](0); // Empty array should fail
 
         vm.prank(eoa);
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
@@ -518,10 +495,10 @@ contract PectraTest is Test {
     // Test delegation with wrong private key
     function testDelegation_WrongPrivateKey() public {
         uint256 wrongPrivateKey = 0x5678; // Different from EOA_PRIVATE_KEY
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-        data[0][1] = validAmountValue(1 ether);
-        data[0][2] = confirmFullExit();
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        data[0].amount = 1000000000; // 1 ether in gwei
+        data[0].isFullExit = true;
 
         // Create a different EOA address from the wrong private key
         address wrongEoa = vm.addr(wrongPrivateKey);
@@ -535,10 +512,10 @@ contract PectraTest is Test {
 
     // Test that delegation fails due to onlySelf modifier
     function testDelegation_FailsDueToOnlySelf() public {
-        bytes[3][] memory data = new bytes[3][](1);
-        data[0][0] = validPubkey();
-        data[0][1] = validAmountValue(1 ether);
-        data[0][2] = confirmFullExit();
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        data[0].amount = 1000000000; // 1 ether in gwei
+        data[0].isFullExit = true;
 
         vm.prank(eoa);
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
