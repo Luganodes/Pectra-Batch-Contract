@@ -129,7 +129,14 @@ contract Pectra {
         }
     }
 
-    function batchELExit(bytes[3][] calldata data) external payable onlySelf {
+    // Define the ExitData struct
+    struct ExitData {
+        bytes pubkey; // 48-byte validator public key
+        uint64 amount; // Amount in gwei (or zero for full exit)
+        bool isFullExit; // Safety flag requiring explicit confirmation for full exits
+    }
+
+    function batchELExit(ExitData[] calldata data) external payable onlySelf {
         uint256 batchSize = data.length;
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
@@ -138,49 +145,29 @@ contract Pectra {
         require(msg.value >= batchSize * exitFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
-            if (data[i][0].length != VALIDATOR_PUBKEY_LENGTH) {
-                emit ExecutionLayerExitFailed(INVALID_PUBKEY_LENGTH, data[i][0], data[i][1]);
-                continue;
-            }
-            if (data[i][1].length != AMOUNT_LENGTH) {
-                emit ExecutionLayerExitFailed(INVALID_AMOUNT_LENGTH, data[i][0], data[i][1]);
+            if (data[i].pubkey.length != VALIDATOR_PUBKEY_LENGTH) {
+                emit ExecutionLayerExitFailed(INVALID_PUBKEY_LENGTH, data[i].pubkey, abi.encodePacked(data[i].amount));
                 continue;
             }
 
-            // Check if amount is zero (representing a full exit)
-            bool isZeroAmount = true;
-            for (uint256 j = 0; j < data[i][1].length; j++) {
-                if (data[i][1][j] != 0) {
-                    isZeroAmount = false;
-                    break;
-                }
-            }
+            bool isZeroAmount = data[i].amount == 0;
 
-            // For zero amount, require confirmation flag to be true (third element is a single byte where 0x01 = true)
-            if (isZeroAmount && (data[i][2].length == 0 || data[i][2][0] == 0)) {
-                emit ExecutionLayerExitFailed(FULL_EXIT_NOT_CONFIRMED, data[i][0], data[i][1]);
+            if (isZeroAmount && !data[i].isFullExit) {
+                emit ExecutionLayerExitFailed(FULL_EXIT_NOT_CONFIRMED, data[i].pubkey, abi.encodePacked(data[i].amount));
                 continue;
             }
 
-            // Check if amount exceeds MAX_WITHDRAWAL_AMOUNT by converting bytes to uint64
-            if (!isZeroAmount) {
-                uint64 amount = 0;
-                // Parse amount as a big-endian uint64
-                for (uint256 j = 0; j < data[i][1].length; j++) {
-                    amount = (amount << 8) | uint64(uint8(data[i][1][j]));
-                }
-
-                // Check if amount exceeds our maximum allowed value
-                if (amount > MAX_WITHDRAWAL_AMOUNT) {
-                    emit ExecutionLayerExitFailed(AMOUNT_EXCEEDS_MAXIMUM, data[i][0], data[i][1]);
-                    continue;
-                }
+            if (!isZeroAmount && data[i].amount > MAX_WITHDRAWAL_AMOUNT) {
+                emit ExecutionLayerExitFailed(AMOUNT_EXCEEDS_MAXIMUM, data[i].pubkey, abi.encodePacked(data[i].amount));
+                continue;
             }
 
-            bytes memory concatenated = abi.encodePacked(data[i][0], data[i][1]);
+            bytes memory amountBytes = abi.encodePacked(data[i].amount);
+
+            bytes memory concatenated = abi.encodePacked(data[i].pubkey, amountBytes);
             (bool success,) = exitTarget.call{value: exitFee}(concatenated);
             if (!success) {
-                emit ExecutionLayerExitFailed(OPERATION_FAILED, data[i][0], data[i][1]);
+                emit ExecutionLayerExitFailed(OPERATION_FAILED, data[i].pubkey, amountBytes);
                 continue;
             }
         }
