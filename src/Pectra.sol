@@ -64,8 +64,14 @@ contract Pectra {
         _;
     }
 
-    function getFee(address target) public view returns (uint256 fee) {
-        (bool readOK, bytes memory feeData) = target.staticcall("");
+    function getConsolidationFee() public view returns (uint256 fee) {
+        (bool readOK, bytes memory feeData) = consolidationTarget.staticcall("");
+        if (!readOK) return MIN_FEE;
+        fee = uint256(bytes32(feeData));
+    }
+
+    function getExitFee() public view returns (uint256 fee) {
+        (bool readOK, bytes memory feeData) = exitTarget.staticcall("");
         if (!readOK) return MIN_FEE;
         fee = uint256(bytes32(feeData));
     }
@@ -82,7 +88,7 @@ contract Pectra {
             revert InvalidTargetPubkeyLength(targetPubkey);
         }
 
-        uint256 consolidationFee = getFee(consolidationTarget);
+        uint256 consolidationFee = getConsolidationFee();
         require(msg.value >= batchSize * consolidationFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
@@ -105,7 +111,7 @@ contract Pectra {
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
 
-        uint256 switchFee = getFee(consolidationTarget);
+        uint256 switchFee = getConsolidationFee();
         require(msg.value >= batchSize * switchFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
@@ -128,7 +134,7 @@ contract Pectra {
         require(batchSize >= MIN_VALIDATORS, MinimumValidatorRequired());
         require(batchSize <= MAX_VALIDATORS, TooManyValidators());
 
-        uint256 exitFee = getFee(exitTarget);
+        uint256 exitFee = getExitFee();
         require(msg.value >= batchSize * exitFee, InsufficientFeePerValidator());
 
         for (uint256 i = 0; i < batchSize; ++i) {
