@@ -159,14 +159,12 @@ contract Pectra {
                 continue;
             }
 
-            if (!isZeroAmount && data[i].amount > MAX_WITHDRAWAL_AMOUNT) {
+            if (data[i].amount > MAX_WITHDRAWAL_AMOUNT) {
                 emit ExecutionLayerExitFailed(FailureReason.AMOUNT_EXCEEDS_MAXIMUM, data[i].pubkey, data[i].amount);
                 continue;
             }
 
-            bytes memory amountBytes = abi.encodePacked(data[i].amount);
-
-            bytes memory concatenated = abi.encodePacked(data[i].pubkey, amountBytes);
+            bytes memory concatenated = abi.encodePacked(data[i].pubkey, data[i].amount);
             (bool success,) = exitTarget.call{value: exitFee}(concatenated);
             if (!success) {
                 emit ExecutionLayerExitFailed(FailureReason.OPERATION_FAILED, data[i].pubkey, data[i].amount);
