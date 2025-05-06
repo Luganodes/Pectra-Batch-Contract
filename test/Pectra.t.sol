@@ -40,19 +40,19 @@ contract PectraTest is Test {
     // ─────────────────────────────────────────────────────────────────────────────
 
     function testGetFee_ConsolidationTarget() public view {
-        uint256 fee = pectra.getFee(consolidationTarget);
+        uint256 fee = pectra.getConsolidationFee();
         assertEq(fee, 1 wei, "Fee from consolidationTarget should be 1 wei");
     }
 
     function testGetFee_ExitTarget() public view {
-        uint256 fee = pectra.getFee(exitTarget);
+        uint256 fee = pectra.getExitFee();
         assertEq(fee, 1 wei, "Fee from exitTarget should be 1 wei");
     }
 
     function testGetFee_FailedCall() public {
         // Temporarily set target to revert code
         vm.etch(consolidationTarget, revertCode);
-        uint256 fee = pectra.getFee(consolidationTarget);
+        uint256 fee = pectra.getConsolidationFee();
         assertEq(fee, pectra.MIN_FEE(), "Fee should default to MIN_FEE when call fails");
         // Reset back to fee code
         vm.etch(consolidationTarget, feeCode);
@@ -186,7 +186,7 @@ contract PectraTest is Test {
         bytes memory target = validPubkey();
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(consolidationTarget);
+        uint256 fee = pectra.getConsolidationFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
@@ -258,7 +258,7 @@ contract PectraTest is Test {
         }
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(consolidationTarget);
+        uint256 fee = pectra.getConsolidationFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
@@ -390,7 +390,7 @@ contract PectraTest is Test {
         }
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(exitTarget);
+        uint256 fee = pectra.getExitFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
@@ -412,7 +412,7 @@ contract PectraTest is Test {
         }
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(exitTarget);
+        uint256 fee = pectra.getExitFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
@@ -438,7 +438,7 @@ contract PectraTest is Test {
         bytes memory target = validPubkey();
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(consolidationTarget);
+        uint256 fee = pectra.getConsolidationFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
@@ -464,7 +464,7 @@ contract PectraTest is Test {
         }
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(consolidationTarget);
+        uint256 fee = pectra.getConsolidationFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
@@ -490,7 +490,7 @@ contract PectraTest is Test {
         }
 
         // Get the fee from the target
-        uint256 fee = pectra.getFee(exitTarget);
+        uint256 fee = pectra.getExitFee();
         assertEq(fee, 1 wei, "Fee should be 1 wei");
 
         uint256 totalValue = count * fee;
