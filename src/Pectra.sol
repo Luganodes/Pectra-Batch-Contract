@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-contract Pectra {
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+contract Pectra is IERC165 {
     address public constant consolidationTarget = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
     address public constant exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
 
@@ -20,6 +22,11 @@ contract Pectra {
     uint256 public constant MIN_FEE = 1 wei;
     /// @dev Maximum withdrawal amount as a uint64 (representing 2048 ether in gwei)
     uint64 public constant MAX_WITHDRAWAL_AMOUNT = 0x1DCD6500000;
+
+    // Interface IDs
+    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
+    bytes4 private constant _INTERFACE_ID_ERC721_RECEIVER = 0x150b7a02;
+    bytes4 private constant _INTERFACE_ID_ERC1155_RECEIVER = 0x4e2312e0;
 
     // Failure reason codes as enum
     enum FailureReason {
@@ -44,6 +51,21 @@ contract Pectra {
 
     receive() external payable {}
     fallback() external payable {}
+
+    /**
+     * @dev Implementation of the {IERC165} interface.
+     *
+     * Returns true if this contract implements the interface defined by
+     * `interfaceId`.
+     * 
+     * This function call must use less than 30,000 gas.
+     */
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+        return
+            interfaceId == _INTERFACE_ID_ERC165 ||
+            interfaceId == _INTERFACE_ID_ERC721_RECEIVER ||
+            interfaceId == _INTERFACE_ID_ERC1155_RECEIVER;
+    }
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
