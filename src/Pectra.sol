@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 
-contract Pectra is IERC165 {
+contract Pectra is IERC165, IERC721Receiver, IERC1155Receiver {
     address public constant consolidationTarget = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
     address public constant exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
 
@@ -66,17 +68,23 @@ contract Pectra is IERC165 {
             || interfaceId == _INTERFACE_ID_ERC1155_RECEIVER;
     }
 
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return this.onERC1155Received.selector;
     }
 
     function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
         external
         pure
+        override
         returns (bytes4)
     {
         return this.onERC1155BatchReceived.selector;
