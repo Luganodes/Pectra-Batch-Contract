@@ -327,9 +327,8 @@ contract PectraTest is Test {
     function testBatchELExit_ExceedsMaximumAmount() public {
         Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
         data[0].pubkey = validPubkey();
-        // Set amount to exceed MAX_WITHDRAWAL_AMOUNT
         data[0].amount = pectra.MAX_WITHDRAWAL_AMOUNT() + 1;
-        data[0].isFullExit = true; // Not needed but included for consistency
+        data[0].isFullExit = false; // Changed to false since full exit can't have amount
 
         vm.expectEmit(true, true, true, true);
         emit Pectra.ExecutionLayerExitFailed(
@@ -345,12 +344,27 @@ contract PectraTest is Test {
         Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
         data[0].pubkey = validPubkey();
         data[0].amount = 1000000000; // 1 ether in gwei
-        data[0].isFullExit = true; // Not needed but included for consistency
+        data[0].isFullExit = false; // Changed to false since full exit can't have amount
+
         vm.expectEmit(true, true, true, true);
         emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.OPERATION_FAILED, data[0].pubkey, data[0].amount);
+
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
         vm.etch(exitTarget, feeCode);
+    }
+
+    function testBatchELExit_FullExitWithAmount() public {
+        Pectra.ExitData[] memory data = new Pectra.ExitData[](1);
+        data[0].pubkey = validPubkey();
+        data[0].amount = 1000000000; // 1 ether in gwei
+        data[0].isFullExit = true; // Setting both amount and isFullExit
+
+        vm.expectEmit(true, true, true, true);
+        emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.FULL_EXIT_WITH_AMOUNT, data[0].pubkey, data[0].amount);
+
+        vm.prank(address(pectra));
+        pectra.batchELExit{value: 1}(data);
     }
 
     function testBatchELExit_SuccessWithValidAmount() public {
@@ -359,7 +373,7 @@ contract PectraTest is Test {
         for (uint256 i = 0; i < count; i++) {
             data[i].pubkey = validPubkey();
             data[i].amount = 1000000000; // 1 ether in gwei
-            data[i].isFullExit = true; // Not needed but included for consistency
+            data[i].isFullExit = false; // Changed to false since full exit can't have amount
         }
 
         // Get the fee from the target
@@ -459,7 +473,7 @@ contract PectraTest is Test {
         for (uint256 i = 0; i < count; i++) {
             data[i].pubkey = validPubkey();
             data[i].amount = 1000000000; // 1 ether in gwei
-            data[i].isFullExit = true;
+            data[i].isFullExit = false; // Changed to false since full exit can't have amount
         }
 
         // Get the fee from the target
