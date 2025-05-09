@@ -12,6 +12,8 @@ jobs:
   check:
     strategy:
       fail-fast: true
+      matrix:
+        os: [ubuntu-latest]
 
     name: Foundry project
     runs-on: ubuntu-latest
