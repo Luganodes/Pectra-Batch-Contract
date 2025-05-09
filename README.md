@@ -42,22 +42,43 @@ The core mechanism relies on EIP-7702:
 1.  **Transaction:** The validator's withdrawal EOA signs and sends an EIP-7702 transaction.
 2.  **Code Execution:** This transaction specifies the `Pectra.sol` contract's bytecode and the desired batch function call (e.g., `batchConsolidation(...)` with validator pubkeys).
 3.  **EOA Emulation:** For the duration of this transaction, the withdrawal EOA *executes* the `Pectra.sol` code. Inside the contract, `msg.sender` and `address(this)` both refer to the withdrawal EOA's address.
-4.  **Authorization:** The `onlySelf` modifier (`require(msg.sender == address(this))`) ensures the batch functions can *only* run in this EIP-7702 context.
+4.  **Authorization:** The `onlySelf` modifier (`require(msg.sender == address(this), Unauthorized())`) ensures the batch functions can *only* run in this EIP-7702 context.
 5.  **Iterative Calls:** The batch function loops through the provided validator data, making individual, low-level `.call()`s to the appropriate official `sys-asm` contract (`consolidationTarget` or `exitTarget`).
 6.  **Origin Preservation:** Crucially, these low-level calls originate *from the withdrawal EOA's address*, satisfying the security requirement of the `sys-asm` contracts.
 
 ![Flow Diagram](https://i.imgur.com/bLdGa3Q.png)
 
-## Security
+## Contract Capabilities
 
-> [Audit Report](https://github.com/Luganodes/Pectra-Batch-Contract/blob/main/audits/quantstamp/Audit.pdf)
+### Token Receiver Interfaces
 
-* **EIP-7702 Authorization:** The primary security relies on the EIP-7702 transaction being signed by the legitimate withdrawal EOA's private key.
-* **`onlySelf` Modifier:** Prevents unauthorized calls to the batch functions outside the EIP-7702 context.
-* **Input Validation:** Rigorous checks on input data lengths and formats.
-* **Immutable Targets:** The official `sys-asm` contract addresses are hardcoded and immutable, preventing redirection.
-* **Stateless:** The batching contract itself holds no state related to the validators.
-* **Failure Handling:** Individual operation failures within a batch emit events and allow the rest of the batch to continue (the transaction doesn't revert unless there's a batch-level configuration error).
+The contract implements ERC721 and ERC1155 receiver interfaces, allowing it to handle NFT transfers if needed:
+
+- `IERC721Receiver` - For standard NFT operations
+- `IERC1155Receiver` - For multi-token standard operations
+
+### Key Parameters
+
+- **Validator Limits:**
+  - Minimum validators per batch: 1 (`MIN_VALIDATORS`)
+  - Maximum source validators for consolidation: 63 (`MAX_SOURCE_VALIDATORS`)
+  - Maximum validators for switch and exit operations: 200 (`MAX_VALIDATORS`)
+
+- **Validator Data:**
+  - Public key length: 48 bytes (`VALIDATOR_PUBKEY_LENGTH`)
+  - Maximum withdrawal amount: 2048 ETH in Gwei (`MAX_WITHDRAWAL_AMOUNT`)
+
+- **Fee Management:**
+  - Minimum fee per validator: 1 wei (`MIN_FEE`)
+  - Dynamic fee retrieval from system contracts (`getConsolidationFee()` and `getExitFee()`)
+
+### Error Handling
+
+The contract has improved error handling with:
+
+- **Custom Errors:** For validation failures (`Unauthorized`, `InvalidTargetPubkeyLength`, etc.)
+- **Failure Reason Enum:** Detailed tracking of operation failures
+- **Events:** Emitted for each failed operation with specific reason codes
 
 ## Usage
 
@@ -71,6 +92,50 @@ A dedicated CLI tool simplifies the process of creating and sending these batch 
 [https://github.com/Luganodes/pectra-cli](https://github.com/Luganodes/pectra-cli)
 
 Please refer to the `pectra-cli` repository for installation and usage instructions.
+
+### Contract Function Details
+
+#### 1. Batch Consolidation
+```solidity
+function batchConsolidation(bytes[] calldata sourcePubkeys, bytes calldata targetPubkey) external payable onlySelf
+```
+- **Purpose:** Consolidate stake from multiple source validators into one target validator
+- **Parameters:**
+  - `sourcePubkeys`: Array of validator public keys to consolidate from
+  - `targetPubkey`: Destination validator public key
+- **Constraints:**
+  - 1-63 source validators
+  - All public keys must be 48 bytes
+  - Sufficient fee per validator
+
+#### 2. Batch Switch
+```solidity
+function batchSwitch(bytes[] calldata pubkeys) external payable onlySelf
+```
+- **Purpose:** Switch withdrawal credentials from `0x01` to `0x02` for multiple validators
+- **Parameters:**
+  - `pubkeys`: Array of validator public keys to switch credentials for
+- **Constraints:**
+  - 1-200 validators
+  - All public keys must be 48 bytes
+  - Sufficient fee per validator
+
+#### 3. Batch EL Exit
+```solidity
+function batchELExit(ExitData[] calldata data) external payable onlySelf
+```
+- **Purpose:** Trigger full or partial Execution Layer exits for multiple validators
+- **Parameters:**
+  - `data`: Array of ExitData structs containing:
+    - `pubkey`: Validator public key (48 bytes)
+    - `amount`: Amount to withdraw in Gwei (0 for full exit)
+    - `isFullExit`: Safety flag requiring explicit confirmation for full exits
+- **Constraints:**
+  - 1-200 validators
+  - All public keys must be 48 bytes
+  - For partial exits: amount must be <= 2048 ETH in Gwei
+  - For full exits: amount must be 0 and isFullExit must be true
+  - Sufficient fee per validator
 
 ### Local Development & Testing (Foundry)
 
@@ -86,8 +151,8 @@ You can compile and test the contract locally using Foundry.
 ```bash
 git clone <this_repository_url>
 cd <repository_directory>
-# Install dependencies if specified (e.g., forge-std)
-# forge install
+# Install dependencies
+forge install openzeppelin/openzeppelin-contracts
 ```
 
 **Compile:**
@@ -115,15 +180,14 @@ forge create src/Pectra.sol:Pectra --rpc-url $RPC_URL --private-key $PRIVATE_KEY
 ```
 **Note:** Remember that calling functions on a *deployed* `Pectra` contract directly from a standard EOA will fail the `onlySelf` modifier check. Interaction still requires an EIP-7702 transaction where the withdrawal EOA emulates this contract's code.
 
-## Contract Details
+## Security Considerations
 
-* **Source File:** `src/Pectra.sol`
-* **Test File:** `test/Pectra.t.sol`
-* **Key Functions:**
-    * `batchConsolidation(bytes[] memory sourcePubkeys, bytes memory targetPubkey)`
-    * `batchSwitch(bytes[] memory pubkeys)`
-    * `batchELExit(bytes[2][] memory data)`
-* **Target System Contracts:**
-    * `consolidationTarget`: `0x0000BBdDc7CE488642fb579F8B00f3a590007251`
-    * `exitTarget`: `0x00000961Ef480Eb55e80D19ad83579A64c007002`
-        *(Verify these addresses before use!)*
+> [Audit Report](https://github.com/Luganodes/Pectra-Batch-Contract/blob/main/audits/quantstamp/Audit.pdf)
+
+* **EIP-7702 Authorization:** The primary security relies on the EIP-7702 transaction being signed by the legitimate withdrawal EOA's private key.
+* **`onlySelf` Modifier:** Prevents unauthorized calls to the batch functions outside the EIP-7702 context.
+* **Input Validation:** Rigorous checks on input data lengths and formats, with improved error reporting.
+* **Explicit Exit Confirmation:** Requires explicit confirmation for full validator exits via the `isFullExit` flag.
+* **Immutable Targets:** The official `sys-asm` contract addresses are hardcoded and immutable, preventing redirection.
+* **Stateless:** The batching contract itself holds no state related to the validators.
+* **Failure Handling:** Individual operation failures within a batch emit events and allow the rest of the batch to continue (the transaction doesn't revert unless there's a batch-level configuration error).
