@@ -6,7 +6,7 @@ This repository contains the `Pectra.sol` smart contract, designed to facilitate
 
 This overcomes the limitation of the official Ethereum Foundation "system assembly" (`sys-asm`) contracts, which only permit one operation per transaction and require direct initiation by the withdrawal EOA.
 
-The contract is audited by Quantstamp [Audit Report](https://github.com/Luganodes/pectra-audit/blob/main/audits/quantstamp/Audit.pdf)
+The contract is audited by Quantstamp [Audit Report](https://github.com/Luganodes/Pectra-Batch-Contract/blob/main/audits/quantstamp/Audit.pdf)
 
 **Key Benefits:**
 
@@ -50,7 +50,7 @@ The core mechanism relies on EIP-7702:
 
 ## Security
 
-> [Audit Report](https://github.com/Luganodes/pectra-audit/blob/main/audits/quantstamp/Audit.pdf)
+> [Audit Report](https://github.com/Luganodes/Pectra-Batch-Contract/blob/main/audits/quantstamp/Audit.pdf)
 
 * **EIP-7702 Authorization:** The primary security relies on the EIP-7702 transaction being signed by the legitimate withdrawal EOA's private key.
 * **`onlySelf` Modifier:** Prevents unauthorized calls to the batch functions outside the EIP-7702 context.
