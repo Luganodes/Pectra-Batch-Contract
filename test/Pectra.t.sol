@@ -12,7 +12,8 @@ contract PectraTest is Test {
     address eoa;
 
     // These addresses are hardcoded in the Pectra contract.
-    address constant consolidationTarget = 0x0000BBdDc7CE488642fb579F8B00f3a590007251;
+    address constant consolidationTarget =
+        0x0000BBdDc7CE488642fb579F8B00f3a590007251;
     address constant exitTarget = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
 
     // Minimal bytecode that immediately returns (i.e. succeeds).
@@ -53,7 +54,11 @@ contract PectraTest is Test {
         // Temporarily set target to revert code
         vm.etch(consolidationTarget, revertCode);
         uint256 fee = pectra.getConsolidationFee();
-        assertEq(fee, pectra.MIN_FEE(), "Fee should default to MIN_FEE when call fails");
+        assertEq(
+            fee,
+            pectra.MIN_FEE(),
+            "Fee should default to MIN_FEE when call fails"
+        );
         // Reset back to fee code
         vm.etch(consolidationTarget, feeCode);
     }
@@ -71,7 +76,9 @@ contract PectraTest is Test {
         return new bytes(pectra.AMOUNT_LENGTH());
     }
 
-    function validAmountValue(uint256 value) internal view returns (bytes memory) {
+    function validAmountValue(
+        uint256 value
+    ) internal view returns (bytes memory) {
         // Returns an amount with the correct length and specified value
         bytes memory amount = new bytes(pectra.AMOUNT_LENGTH());
 
@@ -81,7 +88,9 @@ contract PectraTest is Test {
 
         // Convert uint256 to bytes in big-endian format
         for (uint256 i = 0; i < pectra.AMOUNT_LENGTH(); i++) {
-            amount[i] = bytes1(uint8(value >> (8 * (pectra.AMOUNT_LENGTH() - 1 - i))));
+            amount[i] = bytes1(
+                uint8(value >> (8 * (pectra.AMOUNT_LENGTH() - 1 - i)))
+            );
         }
 
         return amount;
@@ -119,7 +128,9 @@ contract PectraTest is Test {
         bytes[] memory sources = new bytes[](0);
         bytes memory target = validPubkey();
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector)
+        );
         pectra.batchConsolidation{value: 1}(sources, target);
     }
 
@@ -132,7 +143,9 @@ contract PectraTest is Test {
         }
         bytes memory target = validPubkey();
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.TooManySourceValidators.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pectra.TooManySourceValidators.selector)
+        );
         pectra.batchConsolidation{value: count}(sources, target);
     }
 
@@ -141,9 +154,16 @@ contract PectraTest is Test {
         bytes[] memory sources = new bytes[](1);
         sources[0] = validPubkey();
         // Provide an invalid target pubkey (one byte less than required)
-        bytes memory invalidTarget = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
+        bytes memory invalidTarget = new bytes(
+            pectra.VALIDATOR_PUBKEY_LENGTH() - 1
+        );
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.InvalidTargetPubkeyLength.selector, invalidTarget));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Pectra.InvalidTargetPubkeyLength.selector,
+                invalidTarget
+            )
+        );
         pectra.batchConsolidation{value: 1}(sources, invalidTarget);
     }
 
@@ -154,7 +174,11 @@ contract PectraTest is Test {
         sources[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1);
         bytes memory target = validPubkey();
         vm.expectEmit(true, true, true, true);
-        emit Pectra.ConsolidationFailed(Pectra.FailureReason.INVALID_PUBKEY_LENGTH, sources[0], target);
+        emit Pectra.ConsolidationFailed(
+            Pectra.FailureReason.INVALID_PUBKEY_LENGTH,
+            sources[0],
+            target
+        );
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: 1}(sources, target);
     }
@@ -167,7 +191,11 @@ contract PectraTest is Test {
         sources[0] = validPubkey();
         bytes memory target = validPubkey();
         vm.expectEmit(true, true, true, true);
-        emit Pectra.ConsolidationFailed(Pectra.FailureReason.OPERATION_FAILED, sources[0], target);
+        emit Pectra.ConsolidationFailed(
+            Pectra.FailureReason.OPERATION_FAILED,
+            sources[0],
+            target
+        );
         vm.prank(address(pectra));
         pectra.batchConsolidation{value: 1}(sources, target);
         // Restore successful code.
@@ -211,7 +239,9 @@ contract PectraTest is Test {
     function testBatchSwitch_EmptyValidators() public {
         bytes[] memory pubkeys = new bytes[](0);
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector)
+        );
         pectra.batchSwitch{value: 1}(pubkeys);
     }
 
@@ -222,7 +252,9 @@ contract PectraTest is Test {
             pubkeys[i] = validPubkey();
         }
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.TooManyValidators.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pectra.TooManyValidators.selector)
+        );
         pectra.batchSwitch{value: count}(pubkeys);
     }
 
@@ -230,7 +262,10 @@ contract PectraTest is Test {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = new bytes(pectra.VALIDATOR_PUBKEY_LENGTH() - 1); // one byte less than required
         vm.expectEmit(true, true, true, true);
-        emit Pectra.SwitchFailed(Pectra.FailureReason.INVALID_PUBKEY_LENGTH, pubkeys[0]);
+        emit Pectra.SwitchFailed(
+            Pectra.FailureReason.INVALID_PUBKEY_LENGTH,
+            pubkeys[0]
+        );
         vm.prank(address(pectra));
         pectra.batchSwitch{value: 1}(pubkeys);
     }
@@ -240,7 +275,10 @@ contract PectraTest is Test {
         bytes[] memory pubkeys = new bytes[](1);
         pubkeys[0] = validPubkey();
         vm.expectEmit(true, true, true, true);
-        emit Pectra.SwitchFailed(Pectra.FailureReason.OPERATION_FAILED, pubkeys[0]);
+        emit Pectra.SwitchFailed(
+            Pectra.FailureReason.OPERATION_FAILED,
+            pubkeys[0]
+        );
         vm.prank(address(pectra));
         pectra.batchSwitch{value: 1}(pubkeys);
         vm.etch(consolidationTarget, feeCode);
@@ -282,7 +320,9 @@ contract PectraTest is Test {
     function testBatchELExit_EmptyData() public {
         Pectra.ExitData[] memory data = new Pectra.ExitData[](0);
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pectra.MinimumValidatorRequired.selector)
+        );
         pectra.batchELExit{value: 1}(data);
     }
 
@@ -295,7 +335,9 @@ contract PectraTest is Test {
             data[i].isFullExit = true;
         }
         vm.prank(address(pectra));
-        vm.expectRevert(abi.encodeWithSelector(Pectra.TooManyValidators.selector));
+        vm.expectRevert(
+            abi.encodeWithSelector(Pectra.TooManyValidators.selector)
+        );
         pectra.batchELExit{value: count}(data);
     }
 
@@ -306,7 +348,11 @@ contract PectraTest is Test {
         data[0].amount = 0;
         data[0].isFullExit = true;
         vm.expectEmit(true, true, true, true);
-        emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.INVALID_PUBKEY_LENGTH, data[0].pubkey, data[0].amount);
+        emit Pectra.ExecutionLayerExitFailed(
+            Pectra.FailureReason.INVALID_PUBKEY_LENGTH,
+            data[0].pubkey,
+            data[0].amount
+        );
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
     }
@@ -318,7 +364,9 @@ contract PectraTest is Test {
         data[0].isFullExit = false; // Flag set to false
         vm.expectEmit(true, true, true, true);
         emit Pectra.ExecutionLayerExitFailed(
-            Pectra.FailureReason.FULL_EXIT_NOT_CONFIRMED, data[0].pubkey, data[0].amount
+            Pectra.FailureReason.FULL_EXIT_NOT_CONFIRMED,
+            data[0].pubkey,
+            data[0].amount
         );
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
@@ -332,7 +380,9 @@ contract PectraTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit Pectra.ExecutionLayerExitFailed(
-            Pectra.FailureReason.AMOUNT_EXCEEDS_MAXIMUM, data[0].pubkey, data[0].amount
+            Pectra.FailureReason.AMOUNT_EXCEEDS_MAXIMUM,
+            data[0].pubkey,
+            data[0].amount
         );
 
         vm.prank(address(pectra));
@@ -347,7 +397,11 @@ contract PectraTest is Test {
         data[0].isFullExit = false; // Changed to false since full exit can't have amount
 
         vm.expectEmit(true, true, true, true);
-        emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.OPERATION_FAILED, data[0].pubkey, data[0].amount);
+        emit Pectra.ExecutionLayerExitFailed(
+            Pectra.FailureReason.OPERATION_FAILED,
+            data[0].pubkey,
+            data[0].amount
+        );
 
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
@@ -361,7 +415,11 @@ contract PectraTest is Test {
         data[0].isFullExit = true; // Setting both amount and isFullExit
 
         vm.expectEmit(true, true, true, true);
-        emit Pectra.ExecutionLayerExitFailed(Pectra.FailureReason.FULL_EXIT_WITH_AMOUNT, data[0].pubkey, data[0].amount);
+        emit Pectra.ExecutionLayerExitFailed(
+            Pectra.FailureReason.FULL_EXIT_WITH_AMOUNT,
+            data[0].pubkey,
+            data[0].amount
+        );
 
         vm.prank(address(pectra));
         pectra.batchELExit{value: 1}(data);
@@ -434,8 +492,13 @@ contract PectraTest is Test {
         // Call the function on the EOA address instead of the contract
         vm.prank(eoa);
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
-        (bool success,) =
-            eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchConsolidation.selector, sources, target));
+        (bool success, ) = eoa.call{value: totalValue}(
+            abi.encodeWithSelector(
+                Pectra.batchConsolidation.selector,
+                sources,
+                target
+            )
+        );
         assertTrue(success);
 
         // Each successful call sends fee amount
@@ -460,7 +523,9 @@ contract PectraTest is Test {
         // Call the function on the EOA address instead of the contract
         vm.prank(eoa);
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
-        (bool success,) = eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchSwitch.selector, pubkeys));
+        (bool success, ) = eoa.call{value: totalValue}(
+            abi.encodeWithSelector(Pectra.batchSwitch.selector, pubkeys)
+        );
         assertTrue(success);
 
         assertEq(consolidationTarget.balance, preBalance + totalValue);
@@ -486,7 +551,9 @@ contract PectraTest is Test {
         // Call the function on the EOA address instead of the contract
         vm.prank(eoa);
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
-        (bool success,) = eoa.call{value: totalValue}(abi.encodeWithSelector(Pectra.batchELExit.selector, data));
+        (bool success, ) = eoa.call{value: totalValue}(
+            abi.encodeWithSelector(Pectra.batchELExit.selector, data)
+        );
         assertTrue(success);
 
         assertEq(exitTarget.balance, preBalance + totalValue);
@@ -498,7 +565,9 @@ contract PectraTest is Test {
 
         vm.prank(eoa);
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
-        (bool success,) = eoa.call{value: 1}(abi.encodeWithSelector(Pectra.batchELExit.selector, data));
+        (bool success, ) = eoa.call{value: 1}(
+            abi.encodeWithSelector(Pectra.batchELExit.selector, data)
+        );
         assertFalse(success);
     }
 
@@ -516,7 +585,9 @@ contract PectraTest is Test {
         vm.prank(wrongEoa);
         // Sign with the wrong private key but for the wrong EOA
         vm.signAndAttachDelegation(address(pectra), EOA_PRIVATE_KEY);
-        (bool success,) = eoa.call{value: 1}(abi.encodeWithSelector(Pectra.batchELExit.selector, data));
+        (bool success, ) = eoa.call{value: 1}(
+            abi.encodeWithSelector(Pectra.batchELExit.selector, data)
+        );
         assertFalse(success);
     }
 
