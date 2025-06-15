@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "forge-std/Test.sol";
-import "../src/Pectra.sol";
+import {Test} from "forge-std/Test.sol";
+import {Pectra} from "../src/Pectra.sol";
 
 contract PectraTest is Test {
     Pectra public pectra;
